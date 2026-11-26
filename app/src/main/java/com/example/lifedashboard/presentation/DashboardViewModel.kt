@@ -348,6 +348,44 @@ class DashboardViewModel(
         }
     }
 
+    /** Attaches existing tasks, goals, and notes to the specified project. */
+    fun attachItemsToProject(
+        projectId: String,
+        taskIds: Set<String>,
+        goalIds: Set<String>,
+        noteIds: Set<String>
+    ) {
+        viewModelScope.launch {
+            _projectOperationError.value = null
+            try {
+                val currentState = _uiState.value
+                taskMutationMutex.withLock {
+                    currentState.tasks
+                        .filter { it.id in taskIds && it.projectId != projectId }
+                        .forEach { task ->
+                            taskRepository.updateTask(task.copy(projectId = projectId))
+                        }
+                }
+                goalMutationMutex.withLock {
+                    currentState.goals
+                        .filter { it.id in goalIds && it.projectId != projectId }
+                        .forEach { goal ->
+                            goalsRepository?.saveGoal(goal.copy(projectId = projectId))
+                        }
+                }
+                currentState.notes
+                    .filter { it.id in noteIds && it.projectId != projectId }
+                    .forEach { note ->
+                        notesRepository.saveNote(note.copy(projectId = projectId))
+                    }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                _projectOperationError.value = "Не удалось прикрепить выбранные элементы к проекту."
+            }
+        }
+    }
+
     private fun syncTaskReminders(tasks: List<DashboardTask>, enabled: Boolean) {
         val scheduler = taskReminderScheduler ?: return
         if (enabled) tasks.forEach(scheduler::schedule) else tasks.forEach { scheduler.cancel(it.id) }
@@ -546,15 +584,16 @@ class DashboardViewModel(
     fun saveNote(note: DashboardNote, onSaved: (() -> Unit)? = null) {
         val cleanTitle = note.title.trim()
         val cleanBody = note.body.trim()
-        if (cleanTitle.isBlank() && cleanBody.isBlank()) return
+        val hasAttachments = note.attachmentCount > 0 ||
+            _uiState.value.noteAttachments.any { it.noteId == note.id }
+        if (cleanTitle.isBlank() && cleanBody.isBlank() && !hasAttachments) return
         viewModelScope.launch {
             _noteOperationError.value = null
             try {
                 notesRepository.saveNote(
                     note.copy(
                         title = cleanTitle.ifBlank { "Без названия" },
-                        body = cleanBody,
-                        updatedLabel = "Только что"
+                        body = cleanBody
                     )
                 )
                 onSaved?.invoke()
@@ -719,6 +758,23 @@ class DashboardViewModel(
                     throw cancelled
                 } catch (error: Exception) {
                     _projectOperationError.value = "Не удалось удалить проект."
+                }
+            }
+        }
+    }
+
+    fun toggleProjectArchived(projectId: String) {
+        viewModelScope.launch {
+            projectMutationMutex.withLock {
+                _projectOperationError.value = null
+                try {
+                    if (!projectsRepository.toggleArchived(projectId)) {
+                        _projectOperationError.value = "Проект не найден."
+                    }
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    _projectOperationError.value = "Не удалось изменить статус архива проекта."
                 }
             }
         }

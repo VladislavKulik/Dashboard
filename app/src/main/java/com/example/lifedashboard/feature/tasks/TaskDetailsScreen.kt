@@ -33,8 +33,6 @@ import androidx.compose.material.icons.outlined.MoreHoriz
 import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material.icons.outlined.Repeat
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
@@ -43,6 +41,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -57,6 +56,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
@@ -69,6 +69,7 @@ import com.example.lifedashboard.data.model.DashboardTask
 import com.example.lifedashboard.data.model.TaskRecurrence
 import com.example.lifedashboard.data.model.TaskSubtask
 import com.example.lifedashboard.presentation.TaskTimerState
+import com.example.lifedashboard.ui.components.AppExtendedFab
 import com.example.lifedashboard.ui.components.CircleIconButton
 import com.example.lifedashboard.ui.components.PastelCard
 import com.example.lifedashboard.ui.theme.AppColors
@@ -135,7 +136,7 @@ fun TaskDetailsScreen(
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(start = 20.dp, top = 20.dp, end = 20.dp, bottom = 92.dp),
+            contentPadding = PaddingValues(start = 20.dp, top = 20.dp, end = 20.dp, bottom = 96.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             item {
@@ -217,7 +218,7 @@ fun TaskDetailsScreen(
                                 .background(AppColors.White.copy(alpha = 0.85f))
                                 .padding(horizontal = 12.dp, vertical = 5.dp)
                         ) {
-                            Text(task.priority.label, color = AppColors.Ink, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Text(stringResource(id = task.priority.labelResId), color = AppColors.Ink, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         }
                         Box(
                             modifier = Modifier
@@ -226,7 +227,7 @@ fun TaskDetailsScreen(
                                 .padding(horizontal = 12.dp, vertical = 5.dp)
                         ) {
                             Text(
-                                text = task.dueDate?.let { DateInput.formatTaskLabel(it) } ?: task.dueLabel,
+                                text = task.dueDate?.let { DateInput.formatTaskLabel(LocalContext.current, it) } ?: task.dueLabel,
                                 color = AppColors.White,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold
@@ -282,7 +283,6 @@ fun TaskDetailsScreen(
                 }
             }
 
-            // Подзадачи (стр. 19)
             item {
                 Text("Подзадачи", color = AppColors.Muted, style = MaterialTheme.typography.bodySmall)
             }
@@ -490,24 +490,14 @@ fun TaskDetailsScreen(
             }
         }
 
-        Button(
+        AppExtendedFab(
+            icon = Icons.Outlined.PlayArrow,
+            text = if (isTimerActiveHere) "Открыть таймер" else "Начать таймер",
             onClick = { onStartTimer(task, linkedProject?.name) },
             modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 16.dp),
-            shape = RoundedCornerShape(28.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = AppColors.Ink, contentColor = AppColors.White),
-            contentPadding = PaddingValues(vertical = 15.dp)
-        ) {
-            Icon(Icons.Outlined.PlayArrow, contentDescription = null, modifier = Modifier.size(19.dp))
-            Spacer(Modifier.width(6.dp))
-            Text(
-                text = if (isTimerActiveHere) "Открыть таймер" else "Начать таймер",
-                fontWeight = FontWeight.Bold,
-                fontSize = 15.sp
-            )
-        }
+                .align(Alignment.BottomEnd)
+                .padding(20.dp)
+        )
     }
 
     if (showEditDialog) {

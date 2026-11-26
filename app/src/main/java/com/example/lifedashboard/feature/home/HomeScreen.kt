@@ -45,6 +45,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.res.stringResource
+import com.example.lifedashboard.R
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -99,8 +101,15 @@ fun HomeScreen(
     var showHeaderMenu by remember { mutableStateOf(false) }
 
     val today = LocalDate.now()
-    val todayTasks = tasks.filter { it.dueDate == today || (it.dueDate == null && it.dayCategory == TaskDayCategory.TODAY) }
-    val taskPreview = todayTasks.filter { it.showOnHome && (showCompletedTasks || !it.isCompleted) }.take(3)
+    val todayTasks = remember(tasks, today) {
+        tasks.filter { it.dueDate == today || (it.dueDate == null && it.dayCategory == TaskDayCategory.TODAY) }
+    }
+    val taskPreview = remember(todayTasks, showCompletedTasks) {
+        todayTasks
+            .filter { showCompletedTasks || !it.isCompleted }
+            .sortedWith(compareBy<DashboardTask> { it.isCompleted }.thenBy { it.priority.ordinal })
+            .take(4)
+    }
     val completedToday = todayTasks.count { it.isCompleted }
     val dateLabel = today.format(DateTimeFormatter.ofPattern("EEEE, d MMMM", Locale.forLanguageTag("ru")))
         .replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.forLanguageTag("ru")) else it.toString() }
@@ -141,7 +150,7 @@ fun HomeScreen(
                 ) {
                     Text(dateLabel, color = AppColors.Muted, fontSize = 13.sp)
                     Text(
-                        text = "Твой день",
+                        text = stringResource(R.string.home_header_title),
                         style = MaterialTheme.typography.headlineLarge,
                         color = AppColors.Ink
                     )
@@ -149,13 +158,13 @@ fun HomeScreen(
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     CircleIconButton(
                         icon = Icons.Outlined.NotificationsNone,
-                        contentDescription = "Уведомления",
+                        contentDescription = stringResource(R.string.notifications),
                         onClick = onOpenNotifications
                     )
                     Box {
                         CircleIconButton(
                             icon = Icons.Outlined.MoreHoriz,
-                            contentDescription = "Меню главного экрана",
+                            contentDescription = stringResource(R.string.home_menu),
                             onClick = { showHeaderMenu = true }
                         )
                         DropdownMenu(
@@ -163,14 +172,14 @@ fun HomeScreen(
                             onDismissRequest = { showHeaderMenu = false }
                         ) {
                             DropdownMenuItem(
-                                text = { Text("Настроить блоки экрана") },
+                                text = { Text(stringResource(R.string.configure_blocks)) },
                                 onClick = {
                                     showHeaderMenu = false
                                     showLayoutEditor = true
                                 }
                             )
                             DropdownMenuItem(
-                                text = { Text("Календарь") },
+                                text = { Text(stringResource(R.string.calendar_title)) },
                                 onClick = {
                                     showHeaderMenu = false
                                     onOpenCalendar()
@@ -185,10 +194,10 @@ fun HomeScreen(
         if (visibleBlocks.isEmpty()) {
             item {
                 PastelCard(color = AppColors.White, modifier = Modifier.fillMaxWidth()) {
-                    Text("Все блоки скрыты", style = MaterialTheme.typography.titleLarge, color = AppColors.Ink)
-                    Text("Открой меню «⋮» наверху, чтобы вернуть нужные блоки.", color = AppColors.Muted)
+                    Text(stringResource(R.string.all_blocks_hidden), style = MaterialTheme.typography.titleLarge, color = AppColors.Ink)
+                    Text(stringResource(R.string.all_blocks_hidden_sub), color = AppColors.Muted)
                     TextButton(onClick = { showLayoutEditor = true }) {
-                        Text("Настроить главный экран", color = AppColors.Ink, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.configure_home), color = AppColors.Ink, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -207,7 +216,7 @@ fun HomeScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text("Сегодня", style = MaterialTheme.typography.titleLarge, color = AppColors.Ink)
+                                Text(stringResource(R.string.date_today), style = MaterialTheme.typography.titleLarge, color = AppColors.Ink)
                                 Box(
                                     modifier = Modifier
                                         .clip(CircleShape)
@@ -224,7 +233,7 @@ fun HomeScreen(
                                 }
                             }
                             if (taskPreview.isEmpty()) {
-                                Text("На сегодня задач нет", color = AppColors.Muted, fontSize = 14.sp)
+                                Text(stringResource(R.string.no_today_tasks), color = AppColors.Muted, fontSize = 14.sp)
                             } else {
                                 taskPreview.forEach { task ->
                                     TaskRow(
@@ -237,7 +246,7 @@ fun HomeScreen(
                             }
                             if (todayTasks.size > taskPreview.size) {
                                 Text(
-                                    text = "Показать все (${todayTasks.size})",
+                                    text = stringResource(R.string.show_all_with_count, todayTasks.size),
                                     color = AppColors.Ink.copy(alpha = 0.7f),
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.SemiBold,
@@ -254,19 +263,19 @@ fun HomeScreen(
                         ) {
                             HomeMetricCard(
                                 value = tasks.size.toString(),
-                                label = "задач",
+                                label = stringResource(R.string.label_tasks),
                                 modifier = Modifier.weight(1f),
                                 onClick = onOpenTasks
                             )
                             HomeMetricCard(
                                 value = completedThisWeek.toString(),
-                                label = "за неделю",
+                                label = stringResource(R.string.label_for_week),
                                 modifier = Modifier.weight(1f),
                                 onClick = onOpenCalendar
                             )
                             HomeMetricCard(
                                 value = "$habitPercent%",
-                                label = "привычки",
+                                label = stringResource(R.string.label_habits),
                                 modifier = Modifier.weight(1f),
                                 onClick = onOpenHabits
                             )
@@ -285,7 +294,7 @@ fun HomeScreen(
                     HomeBlockType.QUICK_ACCESS -> {
                         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             Text(
-                                text = "Активные проекты",
+                                text = stringResource(R.string.active_projects),
                                 style = MaterialTheme.typography.titleMedium,
                                 color = AppColors.Ink
                             )
@@ -298,7 +307,7 @@ fun HomeScreen(
                             ) {
                                 if (activeProjects.isEmpty()) {
                                     Text(
-                                        text = if (activeProjectCount == 0) "Пока нет активных проектов" else "Активных проектов: $activeProjectCount",
+                                        text = if (activeProjectCount == 0) stringResource(R.string.no_active_projects) else stringResource(R.string.active_projects_count, activeProjectCount),
                                         color = AppColors.Muted,
                                         fontSize = 14.sp,
                                         modifier = Modifier.clickable(onClick = onOpenProjects)
@@ -502,14 +511,14 @@ private fun HomeLayoutSheet(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Блоки главного экрана",
-                    style = MaterialTheme.typography.titleLarge,
-                    color = AppColors.Ink,
-                    modifier = Modifier.weight(1f)
-                )
-                TextButton(onClick = { onSave(HomeBlockConfig.DEFAULT_ORDER) }) {
-                    Text("Сбросить", color = AppColors.Muted)
-                }
+                text = stringResource(R.string.home_blocks_title),
+                style = MaterialTheme.typography.titleLarge,
+                color = AppColors.Ink,
+                modifier = Modifier.weight(1f)
+            )
+            TextButton(onClick = { onSave(HomeBlockConfig.DEFAULT_ORDER) }) {
+                Text(stringResource(R.string.action_reset), color = AppColors.Muted)
+            }
             }
 
             blocks.forEachIndexed { index, item ->
@@ -523,8 +532,8 @@ private fun HomeLayoutSheet(
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(item.type.title, color = AppColors.Ink, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                            Text(item.type.description, color = AppColors.Muted, fontSize = 11.sp)
+                            Text(stringResource(id = item.type.titleResId), color = AppColors.Ink, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                            Text(stringResource(id = item.type.descResId), color = AppColors.Muted, fontSize = 11.sp)
                         }
                         IconButton(
                             onClick = {
@@ -538,7 +547,7 @@ private fun HomeLayoutSheet(
                         ) {
                             Icon(
                                 Icons.Outlined.KeyboardArrowUp,
-                                contentDescription = "Выше",
+                                contentDescription = stringResource(R.string.action_up),
                                 tint = if (index > 0) AppColors.Ink else AppColors.Muted.copy(alpha = 0.35f)
                             )
                         }
@@ -554,7 +563,7 @@ private fun HomeLayoutSheet(
                         ) {
                             Icon(
                                 Icons.Outlined.KeyboardArrowDown,
-                                contentDescription = "Ниже",
+                                contentDescription = stringResource(R.string.action_down),
                                 tint = if (index < blocks.lastIndex) AppColors.Ink else AppColors.Muted.copy(alpha = 0.35f)
                             )
                         }

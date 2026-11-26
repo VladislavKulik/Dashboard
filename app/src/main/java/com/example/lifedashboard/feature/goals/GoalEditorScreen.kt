@@ -1,12 +1,12 @@
 package com.example.lifedashboard.feature.goals
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -15,22 +15,25 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CalendarMonth
-import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material.icons.outlined.Flag
+import androidx.compose.material.icons.outlined.FolderOpen
+import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.Palette
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -45,19 +48,26 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
+import com.example.lifedashboard.R
 import com.example.lifedashboard.data.DateInput
 import com.example.lifedashboard.data.model.DashboardGoal
 import com.example.lifedashboard.data.model.DashboardProject
 import com.example.lifedashboard.data.model.GoalColor
 import com.example.lifedashboard.ui.components.CircleIconButton
+import com.example.lifedashboard.ui.components.ColorPaletteSheet
 import com.example.lifedashboard.ui.components.DateTimePickerSheet
 import com.example.lifedashboard.ui.components.EditorBottomBar
+import com.example.lifedashboard.ui.components.EditorPropertyChip
+import com.example.lifedashboard.ui.components.EditorToolButton
 import com.example.lifedashboard.ui.components.FilterPill
-import com.example.lifedashboard.ui.components.PastelCard
+import com.example.lifedashboard.ui.components.PaletteColorOption
+import com.example.lifedashboard.ui.components.ProjectPickerSheet
 import com.example.lifedashboard.ui.theme.AppColors
 import java.time.LocalDate
 import java.util.UUID
 
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun GoalEditorScreen(
     initialGoal: DashboardGoal?,
@@ -68,6 +78,7 @@ fun GoalEditorScreen(
     initialProjectId: String? = null,
     initialDueDate: LocalDate? = null
 ) {
+    val context = LocalContext.current
     var title by rememberSaveable(initialGoal?.id) { mutableStateOf(initialGoal?.title.orEmpty()) }
     var description by rememberSaveable(initialGoal?.id) { mutableStateOf(initialGoal?.description.orEmpty()) }
     var currentValue by rememberSaveable(initialGoal?.id) { mutableStateOf((initialGoal?.currentValue ?: 0).toString()) }
@@ -77,7 +88,23 @@ fun GoalEditorScreen(
     var projectId by rememberSaveable(initialGoal?.id, initialProjectId) { mutableStateOf(initialGoal?.projectId ?: initialProjectId) }
     var color by rememberSaveable(initialGoal?.id) { mutableStateOf(initialGoal?.color ?: GoalColor.PINK) }
     var attemptedSubmit by rememberSaveable { mutableStateOf(false) }
+
     var showDateSheet by remember { mutableStateOf(false) }
+    var showProjectSheet by remember { mutableStateOf(false) }
+    var showPaletteSheet by remember { mutableStateOf(false) }
+    var showMoreSheet by remember { mutableStateOf(false) }
+
+    val linkedProject = remember(projectId, projects) {
+        projects.firstOrNull { it.id == projectId }
+    }
+
+    val colorOptions = listOf(
+        PaletteColorOption(GoalColor.PINK, stringResource(R.string.color_pink), AppColors.Pink),
+        PaletteColorOption(GoalColor.BLUE, stringResource(R.string.color_blue), AppColors.Blue),
+        PaletteColorOption(GoalColor.MINT, stringResource(R.string.color_mint), AppColors.Mint),
+        PaletteColorOption(GoalColor.YELLOW, stringResource(R.string.color_yellow), AppColors.Yellow),
+        PaletteColorOption(GoalColor.LAVENDER, stringResource(R.string.color_lavender), AppColors.Lavender)
+    )
 
     val parsedCurrent = currentValue.toIntOrNull()
     val parsedTarget = targetValue.toIntOrNull()
@@ -96,7 +123,7 @@ fun GoalEditorScreen(
                 dueDate = dueDate,
                 currentValue = parsedCurrent,
                 targetValue = parsedTarget,
-                unit = unit.trim().ifBlank { "раз" },
+                unit = unit.trim().ifBlank { context.getString(R.string.default_unit) },
                 projectId = projectId,
                 color = color,
                 sortOrder = initialGoal?.sortOrder ?: 0
@@ -109,14 +136,14 @@ fun GoalEditorScreen(
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(start = 20.dp, top = 20.dp, end = 20.dp, bottom = 104.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             item {
                 Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    CircleIconButton(icon = Icons.Outlined.Close, contentDescription = "Закрыть", onClick = onBack)
+                    CircleIconButton(icon = Icons.Outlined.Close, contentDescription = stringResource(R.string.action_close), onClick = onBack)
                     Spacer(Modifier.width(12.dp))
                     Text(
-                        text = if (initialGoal == null) "Новая цель" else "Редактировать цель",
+                        text = if (initialGoal == null) stringResource(R.string.goal_new) else stringResource(R.string.goal_edit_alt),
                         style = MaterialTheme.typography.headlineLarge,
                         color = AppColors.Ink
                     )
@@ -133,11 +160,11 @@ fun GoalEditorScreen(
                     onValueChange = { title = it },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    label = { Text("Название") },
-                    placeholder = { Text("Название цели") },
+                    label = { Text(stringResource(R.string.goal_name_full)) },
+                    placeholder = { Text(stringResource(R.string.goal_name_placeholder)) },
                     isError = attemptedSubmit && title.isBlank(),
                     supportingText = if (attemptedSubmit && title.isBlank()) {
-                        { Text("Введите название цели", color = AppColors.Error) }
+                        { Text(stringResource(R.string.enter_goal_title_error), color = AppColors.Error) }
                     } else null,
                     shape = RoundedCornerShape(16.dp),
                     colors = OutlinedTextFieldDefaults.colors(
@@ -152,13 +179,83 @@ fun GoalEditorScreen(
             }
 
             item {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        OutlinedTextField(
+                            value = currentValue,
+                            onValueChange = { currentValue = it.filter(Char::isDigit).take(7) },
+                            label = { Text(stringResource(R.string.goal_current)) },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = AppColors.White,
+                                unfocusedContainerColor = AppColors.White,
+                                focusedBorderColor = AppColors.Ink,
+                                unfocusedBorderColor = Color.Transparent
+                            ),
+                            modifier = Modifier.weight(1f)
+                        )
+                        OutlinedTextField(
+                            value = targetValue,
+                            onValueChange = { targetValue = it.filter(Char::isDigit).take(7) },
+                            label = { Text(stringResource(R.string.goal_target)) },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = AppColors.White,
+                                unfocusedContainerColor = AppColors.White,
+                                focusedBorderColor = AppColors.Ink,
+                                unfocusedBorderColor = Color.Transparent
+                            ),
+                            modifier = Modifier.weight(1f)
+                        )
+                        OutlinedTextField(
+                            value = unit,
+                            onValueChange = { unit = it.take(24) },
+                            label = { Text(stringResource(R.string.unit_short)) },
+                            singleLine = true,
+                            shape = RoundedCornerShape(16.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = AppColors.White,
+                                unfocusedContainerColor = AppColors.White,
+                                focusedBorderColor = AppColors.Ink,
+                                unfocusedBorderColor = Color.Transparent
+                            ),
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                    if (attemptedSubmit && !progressValid) {
+                        Text(stringResource(R.string.check_values_error), color = AppColors.Error, fontSize = 12.sp)
+                    }
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        listOf("раз", "книг", "км", "часов", "уроков", "шагов", "%").forEach { quickUnit ->
+                            FilterPill(
+                                label = quickUnit,
+                                selected = unit == quickUnit,
+                                onClick = { unit = quickUnit }
+                            )
+                        }
+                    }
+                }
+            }
+
+            item {
                 OutlinedTextField(
                     value = description,
                     onValueChange = { description = it },
                     modifier = Modifier.fillMaxWidth(),
-                    minLines = 2,
-                    label = { Text("Описание") },
-                    placeholder = { Text("Зачем это нужно") },
+                    minLines = 3,
+                    maxLines = 8,
+                    label = { Text(stringResource(R.string.goal_description)) },
+                    placeholder = { Text(stringResource(R.string.why_needed_placeholder)) },
                     shape = RoundedCornerShape(16.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = AppColors.White,
@@ -170,117 +267,31 @@ fun GoalEditorScreen(
             }
 
             item {
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    OutlinedTextField(
-                        value = currentValue,
-                        onValueChange = { currentValue = it.filter(Char::isDigit).take(7) },
-                        label = { Text("Сейчас") },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = AppColors.White,
-                            unfocusedContainerColor = AppColors.White,
-                            focusedBorderColor = AppColors.Ink,
-                            unfocusedBorderColor = Color.Transparent
-                        ),
-                        modifier = Modifier.weight(1f)
-                    )
-                    OutlinedTextField(
-                        value = targetValue,
-                        onValueChange = { targetValue = it.filter(Char::isDigit).take(7) },
-                        label = { Text("Цель") },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = AppColors.White,
-                            unfocusedContainerColor = AppColors.White,
-                            focusedBorderColor = AppColors.Ink,
-                            unfocusedBorderColor = Color.Transparent
-                        ),
-                        modifier = Modifier.weight(1f)
-                    )
-                    OutlinedTextField(
-                        value = unit,
-                        onValueChange = { unit = it.take(24) },
-                        label = { Text("Единица") },
-                        singleLine = true,
-                        shape = RoundedCornerShape(16.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = AppColors.White,
-                            unfocusedContainerColor = AppColors.White,
-                            focusedBorderColor = AppColors.Ink,
-                            unfocusedBorderColor = Color.Transparent
-                        ),
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-                if (attemptedSubmit && !progressValid) {
-                    Text("Проверь значения: 0 ≤ Сейчас ≤ Цель", color = AppColors.Error, fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
-                }
-            }
-
-            item {
-                PastelCard(
-                    color = AppColors.White,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { showDateSheet = true },
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp)
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Text("Срок", color = AppColors.Muted, fontSize = 11.sp)
-                            Text(
-                                text = dueDate?.let { DateInput.formatForInput(it) } ?: "Выбрать дату",
-                                color = if (dueDate == null) AppColors.Muted else AppColors.Ink,
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
-                        Icon(Icons.Outlined.CalendarMonth, contentDescription = "Выбрать дату", tint = AppColors.Ink)
-                    }
-                }
-            }
-
-            if (projects.isNotEmpty()) {
-                item {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Проект", color = AppColors.Muted, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-                        Row(
-                            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            FilterPill("Без проекта", projectId == null, { projectId = null })
-                            projects.forEach { project ->
-                                FilterPill(project.name, projectId == project.id, { projectId = project.id })
-                            }
-                        }
-                    }
-                }
-            }
-
-            item {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("Цвет карточки", color = AppColors.Muted, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        GoalColor.values().forEach { option ->
-                            val selected = color == option
-                            Box(
-                                modifier = Modifier
-                                    .size(38.dp)
-                                    .clip(CircleShape)
-                                    .background(goalCardColor(option))
-                                    .then(if (selected) Modifier.border(2.dp, AppColors.Ink, CircleShape) else Modifier)
-                                    .clickable { color = option },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                if (selected) {
-                                    Icon(Icons.Outlined.Check, contentDescription = "Выбрано", tint = AppColors.Ink, modifier = Modifier.size(16.dp))
-                                }
-                            }
-                        }
+                    EditorPropertyChip(
+                        icon = Icons.Outlined.Palette,
+                        label = colorOptions.firstOrNull { it.value == color }?.label ?: stringResource(R.string.color_label),
+                        backgroundColor = goalCardColor(color),
+                        onClick = { showPaletteSheet = true }
+                    )
+                    val noDeadlineLabel = stringResource(R.string.date_no_deadline)
+                    EditorPropertyChip(
+                        icon = Icons.Outlined.CalendarMonth,
+                        label = dueDate?.let { stringResource(R.string.deadline_prefix, DateInput.formatTaskLabel(context, it)) } ?: noDeadlineLabel,
+                        onClick = { showDateSheet = true },
+                        onClear = if (dueDate != null) ({ dueDate = null }) else null
+                    )
+                    if (linkedProject != null) {
+                        EditorPropertyChip(
+                            icon = Icons.Outlined.FolderOpen,
+                            label = linkedProject.name,
+                            backgroundColor = Color(linkedProject.colorArgb).copy(alpha = 0.65f),
+                            onClick = { showProjectSheet = true },
+                            onClear = { projectId = null }
+                        )
                     }
                 }
             }
@@ -291,14 +302,24 @@ fun GoalEditorScreen(
             onConfirm = ::submit,
             modifier = Modifier.align(Alignment.BottomCenter)
         ) {
-            IconButton(onClick = { showDateSheet = true }) {
-                Icon(Icons.Outlined.CalendarMonth, contentDescription = "Срок", tint = AppColors.Ink)
-            }
-            IconButton(onClick = {
-                val values = GoalColor.values()
-                color = values[(color.ordinal + 1) % values.size]
-            }) {
-                Icon(Icons.Outlined.Flag, contentDescription = "Сменить цвет", tint = AppColors.Ink)
+            EditorToolButton(
+                icon = Icons.Outlined.CalendarMonth,
+                contentDescription = stringResource(R.string.goal_deadline),
+                isActive = dueDate != null,
+                onClick = { showDateSheet = true }
+            )
+            EditorToolButton(
+                icon = Icons.Outlined.Palette,
+                contentDescription = stringResource(R.string.card_color),
+                onClick = { showPaletteSheet = true }
+            )
+            if (projects.isNotEmpty()) {
+                EditorToolButton(
+                    icon = Icons.Outlined.MoreVert,
+                    contentDescription = stringResource(R.string.linked_project_more),
+                    isActive = projectId != null,
+                    onClick = { showMoreSheet = true }
+                )
             }
         }
     }
@@ -313,6 +334,60 @@ fun GoalEditorScreen(
                 dueDate = pickedDate
                 showDateSheet = false
             }
+        )
+    }
+
+    if (showMoreSheet) {
+        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        ModalBottomSheet(
+            onDismissRequest = { showMoreSheet = false },
+            sheetState = sheetState,
+            containerColor = AppColors.White,
+            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+                    .padding(bottom = 28.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .clickable {
+                            showMoreSheet = false
+                            showProjectSheet = true
+                        }
+                        .padding(horizontal = 6.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Outlined.FolderOpen, contentDescription = null, tint = AppColors.Ink, modifier = Modifier.size(22.dp))
+                    Spacer(Modifier.width(16.dp))
+                    Text(stringResource(R.string.label_project), color = AppColors.Ink, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                    Text(linkedProject?.name ?: stringResource(R.string.no_linked_project), color = AppColors.Muted, fontSize = 13.sp)
+                }
+            }
+        }
+    }
+
+    if (showProjectSheet) {
+        ProjectPickerSheet(
+            projects = projects,
+            selectedProjectId = projectId,
+            onSelectProject = { projectId = it },
+            onDismiss = { showProjectSheet = false }
+        )
+    }
+
+    if (showPaletteSheet) {
+        ColorPaletteSheet(
+            title = stringResource(R.string.goal_color_title),
+            options = colorOptions,
+            selected = color,
+            onSelect = { color = it },
+            onDismiss = { showPaletteSheet = false }
         )
     }
 }

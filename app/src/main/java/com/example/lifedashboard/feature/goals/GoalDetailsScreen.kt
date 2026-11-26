@@ -41,6 +41,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
+import com.example.lifedashboard.R
 import com.example.lifedashboard.data.DateInput
 import com.example.lifedashboard.data.model.DashboardGoal
 import com.example.lifedashboard.data.model.DashboardProject
@@ -70,17 +72,20 @@ fun GoalDetailsScreen(
     val linkedProject = remember(goal.projectId, projects) {
         projects.firstOrNull { it.id == goal.projectId }
     }
-    val deadlineSubtitle = remember(goal.dueDate, goal.isCompleted) {
+    val goalAchieved = stringResource(R.string.goal_achieved)
+    val noDeadline = stringResource(R.string.date_no_deadline)
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val deadlineSubtitle = remember(goal.dueDate, goal.isCompleted, context) {
         when {
-            goal.isCompleted -> "Цель достигнута"
-            goal.dueDate == null -> "Без срока"
+            goal.isCompleted -> goalAchieved
+            goal.dueDate == null -> noDeadline
             else -> {
                 val daysLeft = ChronoUnit.DAYS.between(LocalDate.now(), goal.dueDate)
-                val datePart = "до ${DateInput.formatShort(goal.dueDate)}"
+                val datePart = context.getString(R.string.goal_due_to, DateInput.formatShort(goal.dueDate))
                 when {
-                    daysLeft < 0 -> "$datePart · просрочено на ${-daysLeft} дн."
-                    daysLeft == 0L -> "$datePart · сегодня"
-                    else -> "$datePart · осталось $daysLeft дн."
+                    daysLeft < 0 -> context.getString(R.string.goal_overdue, datePart, -daysLeft)
+                    daysLeft == 0L -> context.getString(R.string.goal_today, datePart)
+                    else -> context.getString(R.string.goal_days_left, datePart, daysLeft)
                 }
             }
         }
@@ -99,12 +104,12 @@ fun GoalDetailsScreen(
         ) {
             CircleIconButton(
                 icon = Icons.Outlined.ArrowBack,
-                contentDescription = "Назад",
+                contentDescription = stringResource(R.string.action_back),
                 onClick = onBack
             )
             Spacer(Modifier.width(12.dp))
             Text(
-                text = "Цель",
+                text = stringResource(R.string.type_goal),
                 modifier = Modifier.weight(1f),
                 style = MaterialTheme.typography.headlineLarge,
                 color = AppColors.Ink
@@ -112,7 +117,7 @@ fun GoalDetailsScreen(
             Box {
                 CircleIconButton(
                     icon = Icons.Outlined.MoreHoriz,
-                    contentDescription = "Действия",
+                    contentDescription = stringResource(R.string.action_actions),
                     onClick = { showOverflowMenu = true }
                 )
                 DropdownMenu(
@@ -120,14 +125,14 @@ fun GoalDetailsScreen(
                     onDismissRequest = { showOverflowMenu = false }
                 ) {
                     DropdownMenuItem(
-                        text = { Text("Редактировать") },
+                        text = { Text(stringResource(R.string.action_edit)) },
                         onClick = {
                             showOverflowMenu = false
                             if (onEditGoal != null) onEditGoal() else showEditor = true
                         }
                     )
                     DropdownMenuItem(
-                        text = { Text("Удалить цель", color = AppColors.Error) },
+                        text = { Text(stringResource(R.string.action_delete_goal), color = AppColors.Error) },
                         onClick = {
                             showOverflowMenu = false
                             showDeleteConfirmation = true
@@ -206,7 +211,7 @@ fun GoalDetailsScreen(
                     ) {
                         Icon(
                             Icons.Outlined.Remove,
-                            contentDescription = "Уменьшить",
+                            contentDescription = stringResource(R.string.action_decrease),
                             tint = if (goal.currentValue > 0) AppColors.Ink else AppColors.Muted.copy(alpha = 0.4f),
                             modifier = Modifier.size(18.dp)
                         )
@@ -227,7 +232,7 @@ fun GoalDetailsScreen(
                     ) {
                         Icon(
                             Icons.Outlined.Add,
-                            contentDescription = "Увеличить",
+                            contentDescription = stringResource(R.string.action_increase),
                             tint = if (goal.isCompleted) AppColors.Muted.copy(alpha = 0.4f) else AppColors.White,
                             modifier = Modifier.size(18.dp)
                         )
@@ -237,7 +242,7 @@ fun GoalDetailsScreen(
         }
 
         if (linkedProject != null) {
-            Text("Проект", color = AppColors.Muted, style = MaterialTheme.typography.bodySmall)
+            Text(stringResource(R.string.label_project), color = AppColors.Muted, style = MaterialTheme.typography.bodySmall)
             Box(
                 modifier = Modifier
                     .clip(CircleShape)
@@ -250,7 +255,7 @@ fun GoalDetailsScreen(
         }
 
         if (goal.description.isNotBlank()) {
-            Text("Описание", color = AppColors.Muted, style = MaterialTheme.typography.bodySmall)
+            Text(stringResource(R.string.goal_description), color = AppColors.Muted, style = MaterialTheme.typography.bodySmall)
             PastelCard(color = AppColors.White, modifier = Modifier.fillMaxWidth()) {
                 Text(goal.description, color = AppColors.Ink, fontSize = 14.sp)
             }
@@ -270,17 +275,17 @@ fun GoalDetailsScreen(
     if (showDeleteConfirmation) {
         AlertDialog(
             onDismissRequest = { showDeleteConfirmation = false },
-            title = { Text("Удалить цель?", color = AppColors.Ink) },
-            text = { Text("«${goal.title}» и её прогресс будут удалены.", color = AppColors.Muted) },
+            title = { Text(stringResource(R.string.delete_goal_title), color = AppColors.Ink) },
+            text = { Text(stringResource(R.string.delete_goal_confirm, goal.title), color = AppColors.Muted) },
             confirmButton = {
                 TextButton(onClick = {
                     onDeleteGoal(goal.id) {
                         showDeleteConfirmation = false
                         onBack()
                     }
-                }) { Text("Удалить", color = AppColors.Error) }
+                }) { Text(stringResource(R.string.action_delete), color = AppColors.Error) }
             },
-            dismissButton = { TextButton(onClick = { showDeleteConfirmation = false }) { Text("Отмена", color = AppColors.Muted) } },
+            dismissButton = { TextButton(onClick = { showDeleteConfirmation = false }) { Text(stringResource(R.string.action_cancel), color = AppColors.Muted) } },
             containerColor = AppColors.White
         )
     }

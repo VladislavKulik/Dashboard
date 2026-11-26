@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -77,8 +76,14 @@ fun ProfileScreen(
                 editing = !editing
             },
             onBackClick = {
-                if (editing) onSaveProfile(name, email, dailyGoal)
-                onBack()
+                if (editing) {
+                    name = settings.profileName
+                    email = settings.profileEmail
+                    dailyGoal = settings.dailyTaskGoal
+                    editing = false
+                } else {
+                    onBack()
+                }
             }
         )
 
@@ -94,52 +99,70 @@ fun ProfileScreen(
             }
         }
 
-        OutlinedTextField(
-            value = name,
-            onValueChange = {
-                name = it
-                editing = true
-            },
-            enabled = true,
-            singleLine = true,
-            label = { Text("Имя") },
-            placeholder = { Text("Ваше имя") },
-            shape = RoundedCornerShape(16.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = AppColors.White,
-                unfocusedContainerColor = AppColors.White,
-                focusedBorderColor = AppColors.Ink,
-                unfocusedBorderColor = Color.Transparent
-            ),
-            modifier = Modifier.fillMaxWidth()
-        )
+        if (!editing) {
+            PastelCard(
+                color = AppColors.White,
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = PaddingValues(18.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text("Имя", color = AppColors.Muted, fontSize = 12.sp)
+                    Text(
+                        text = name.ifBlank { "Не указано" },
+                        color = if (name.isBlank()) AppColors.Muted else AppColors.Ink,
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text("Почта", color = AppColors.Muted, fontSize = 12.sp)
+                    Text(
+                        text = email.ifBlank { "Не указана" },
+                        color = if (email.isBlank()) AppColors.Muted else AppColors.Ink,
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                }
+            }
+        } else {
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                singleLine = true,
+                label = { Text("Имя") },
+                placeholder = { Text("Ваше имя") },
+                shape = RoundedCornerShape(16.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = AppColors.White,
+                    unfocusedContainerColor = AppColors.White,
+                    focusedBorderColor = AppColors.Ink,
+                    unfocusedBorderColor = AppColors.Outline
+                ),
+                modifier = Modifier.fillMaxWidth()
+            )
 
-        OutlinedTextField(
-            value = email,
-            onValueChange = {
-                email = it
-                editing = true
-            },
-            enabled = true,
-            singleLine = true,
-            label = { Text("Почта") },
-            placeholder = { Text("name@example.com") },
-            shape = RoundedCornerShape(16.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = AppColors.White,
-                unfocusedContainerColor = AppColors.White,
-                focusedBorderColor = AppColors.Ink,
-                unfocusedBorderColor = Color.Transparent
-            ),
-            modifier = Modifier.fillMaxWidth()
-        )
+            OutlinedTextField(
+                value = email,
+                onValueChange = { email = it },
+                singleLine = true,
+                label = { Text("Почта") },
+                placeholder = { Text("name@example.com") },
+                shape = RoundedCornerShape(16.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = AppColors.White,
+                    unfocusedContainerColor = AppColors.White,
+                    focusedBorderColor = AppColors.Ink,
+                    unfocusedBorderColor = AppColors.Outline
+                ),
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
 
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            ProfileStatCard(value = projectCount.toString(), label = "проекта", modifier = Modifier.weight(1f))
-            ProfileStatCard(value = noteCount.toString(), label = "заметки", modifier = Modifier.weight(1f))
+            ProfileStatCard(value = projectCount.toString(), label = "проектов", modifier = Modifier.weight(1f))
+            ProfileStatCard(value = noteCount.toString(), label = "заметок", modifier = Modifier.weight(1f))
             ProfileStatCard(value = bestHabitStreak.toString(), label = "дней подряд", modifier = Modifier.weight(1f))
         }
 
@@ -154,38 +177,56 @@ fun ProfileScreen(
             ) {
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text("Дневная цель", color = AppColors.Ink, style = MaterialTheme.typography.titleMedium)
-                    Text("Задач в день", color = AppColors.Muted, fontSize = 12.sp)
+                    Text(
+                        text = if (editing) "Задач в день (нажми ✓ сверху для сохранения)" else "Задач в день",
+                        color = AppColors.Muted,
+                        fontSize = 12.sp
+                    )
                 }
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
+                if (editing) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(AppColors.Background)
+                                .clickable(enabled = dailyGoal > 1) {
+                                    dailyGoal = (dailyGoal - 1).coerceAtLeast(1)
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Outlined.Remove, contentDescription = "Уменьшить", tint = AppColors.Ink, modifier = Modifier.size(18.dp))
+                        }
+                        Text(dailyGoal.toString(), color = AppColors.Ink, fontSize = 16.sp, fontWeight = FontWeight.ExtraBold)
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(AppColors.Ink)
+                                .clickable(enabled = dailyGoal < 50) {
+                                    dailyGoal = (dailyGoal + 1).coerceAtMost(50)
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Outlined.Add, contentDescription = "Увеличить", tint = AppColors.White, modifier = Modifier.size(18.dp))
+                        }
+                    }
+                } else {
                     Box(
                         modifier = Modifier
-                            .size(36.dp)
                             .clip(CircleShape)
                             .background(AppColors.Background)
-                            .clickable(enabled = dailyGoal > 1) {
-                                dailyGoal = (dailyGoal - 1).coerceAtLeast(1)
-                                onSaveProfile(name, email, dailyGoal)
-                            },
-                        contentAlignment = Alignment.Center
+                            .padding(horizontal = 14.dp, vertical = 8.dp)
                     ) {
-                        Icon(Icons.Outlined.Remove, contentDescription = "Уменьшить", tint = AppColors.Ink, modifier = Modifier.size(18.dp))
-                    }
-                    Text(dailyGoal.toString(), color = AppColors.Ink, fontSize = 16.sp, fontWeight = FontWeight.ExtraBold)
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .background(AppColors.Ink)
-                            .clickable(enabled = dailyGoal < 50) {
-                                dailyGoal = (dailyGoal + 1).coerceAtMost(50)
-                                onSaveProfile(name, email, dailyGoal)
-                            },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(Icons.Outlined.Add, contentDescription = "Увеличить", tint = AppColors.White, modifier = Modifier.size(18.dp))
+                        Text(
+                            text = "$dailyGoal в день",
+                            color = AppColors.Ink,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.ExtraBold
+                        )
                     }
                 }
             }

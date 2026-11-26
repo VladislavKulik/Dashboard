@@ -34,8 +34,6 @@ import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Stop
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Snackbar
@@ -62,8 +60,8 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
@@ -75,6 +73,8 @@ import com.example.lifedashboard.data.model.TaskDayCategory
 import com.example.lifedashboard.data.model.TaskPriority
 import com.example.lifedashboard.data.model.TaskRecurrence
 import com.example.lifedashboard.presentation.TaskTimerState
+import com.example.lifedashboard.ui.components.AppFab
+import com.example.lifedashboard.ui.components.EmptySectionState
 import com.example.lifedashboard.ui.components.FilterPill
 import com.example.lifedashboard.ui.components.PastelCard
 import com.example.lifedashboard.ui.components.ScreenTopBar
@@ -210,9 +210,12 @@ fun TasksScreen(
 
             if (baseTasks.isEmpty()) {
                 item {
-                    EmptyTasksHeroState(
-                        onAddClick = ::openAddFlow,
-                        modifier = Modifier.padding(top = 44.dp)
+                    EmptySectionState(
+                        icon = Icons.Outlined.CheckCircleOutline,
+                        iconBackground = AppColors.Blue,
+                        title = "Задач пока нет",
+                        subtitle = "Добавьте первую задачу, чтобы спланировать день и отслеживать свой прогресс",
+                        modifier = Modifier.padding(top = 24.dp)
                     )
                 }
             } else {
@@ -260,10 +263,13 @@ fun TasksScreen(
 
                 if (visibleTasks.isEmpty()) {
                     item {
-                        PastelCard(color = AppColors.White, modifier = Modifier.fillMaxWidth()) {
-                            Text("Здесь пока пусто", style = MaterialTheme.typography.titleLarge, color = AppColors.Ink)
-                            Text("Добавь задачу или выбери другой фильтр.", color = AppColors.Muted)
-                        }
+                        EmptySectionState(
+                            icon = Icons.Outlined.CheckCircleOutline,
+                            iconBackground = AppColors.Blue,
+                            title = "В этом списке пусто",
+                            subtitle = "По выбранному фильтру задач нет",
+                            modifier = Modifier.padding(top = 24.dp)
+                        )
                     }
                 } else {
                     if (todaySectionTasks.isNotEmpty()) {
@@ -338,23 +344,14 @@ fun TasksScreen(
             }
         }
 
-        if (baseTasks.isNotEmpty()) {
-            Surface(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(end = 20.dp, bottom = if (timerState.activeTaskId != null) 94.dp else 20.dp)
-                    .size(60.dp)
-                    .clip(CircleShape)
-                    .clickable(role = Role.Button, onClick = ::openAddFlow),
-                color = AppColors.Yellow,
-                shape = CircleShape,
-                shadowElevation = 6.dp
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(Icons.Outlined.Add, contentDescription = "Добавить задачу", tint = AppColors.Ink, modifier = Modifier.size(26.dp))
-                }
-            }
-        }
+        AppFab(
+            icon = Icons.Outlined.Add,
+            contentDescription = "Добавить задачу",
+            onClick = ::openAddFlow,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = 20.dp, bottom = if (timerState.activeTaskId != null) 94.dp else 20.dp)
+        )
     }
 
     if (showAddDialog) {
@@ -362,7 +359,7 @@ fun TasksScreen(
             projects = projects,
             initialProjectId = initialProjectId,
             onBack = { showAddDialog = false },
-            onCreate = { title, priority, projectId, dueDate, recurrence, recurrenceDays, reminderEnabled, reminderTime, endDate, remCount, planned ->
+            onCreate = { title, priority, projectId, dueDate, recurrence, recurrenceDays, reminderEnabled, reminderTime, _, _, _ ->
                 onAddTask(title, priority, projectId, dueDate, recurrence, recurrenceDays, reminderEnabled, reminderTime)
                 selectedFilter = TaskFilter.ALL
                 showAddDialog = false
@@ -391,45 +388,6 @@ fun TasksScreen(
             dismissButton = { TextButton(onClick = { deletingTask = null }) { Text("Отмена", color = AppColors.Muted) } },
             containerColor = AppColors.White
         )
-    }
-}
-
-@Composable
-private fun EmptyTasksHeroState(
-    onAddClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(14.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .size(68.dp)
-                .clip(CircleShape)
-                .background(AppColors.Blue),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(Icons.Outlined.CheckCircleOutline, contentDescription = null, tint = AppColors.Ink, modifier = Modifier.size(30.dp))
-        }
-        Text("Задач пока нет", style = MaterialTheme.typography.titleLarge, color = AppColors.Ink)
-        Text(
-            text = "Добавьте первую задачу, чтобы видеть прогресс дня",
-            color = AppColors.Muted,
-            fontSize = 14.sp,
-            textAlign = TextAlign.Center
-        )
-        Button(
-            onClick = onAddClick,
-            shape = CircleShape,
-            colors = ButtonDefaults.buttonColors(containerColor = AppColors.Ink, contentColor = AppColors.White),
-            contentPadding = PaddingValues(horizontal = 28.dp, vertical = 14.dp)
-        ) {
-            Text("Добавить задачу", fontWeight = FontWeight.Bold)
-        }
     }
 }
 
@@ -578,7 +536,7 @@ private fun PriorityDotLabel(priority: TaskPriority) {
                 .background(dotColor)
         )
         Text(
-            text = priority.label,
+            text = stringResource(id = priority.labelResId),
             color = AppColors.Ink,
             fontSize = 12.sp,
             fontWeight = FontWeight.Medium

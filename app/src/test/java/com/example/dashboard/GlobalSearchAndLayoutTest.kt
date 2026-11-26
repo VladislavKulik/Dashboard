@@ -51,7 +51,7 @@ class GlobalSearchAndLayoutTest {
 
     @Test
     fun globalSearchFindsAcrossAllEntitiesAndRanksExactPrefixHigher() {
-        val results = GlobalSearchMatcher.search("релиз", sampleState)
+        val results = GlobalSearchMatcher.search("релиз", sampleState, SearchScope.ALL, null) { "" }
         assertEquals(4, results.size)
         assertEquals(SearchScope.TASKS, results.first().scope)
         assertTrue(results.any { it.scope == SearchScope.PROJECTS })
@@ -61,11 +61,11 @@ class GlobalSearchAndLayoutTest {
 
     @Test
     fun globalSearchMatchesProjectStagesAndLinkedProjectName() {
-        val stageMatch = GlobalSearchMatcher.search("финальный", sampleState, SearchScope.PROJECTS)
+        val stageMatch = GlobalSearchMatcher.search("финальный", sampleState, SearchScope.PROJECTS, null) { "" }
         assertEquals(1, stageMatch.size)
         assertEquals("p1", stageMatch.first().entityId)
 
-        val linkedTaskMatch = GlobalSearchMatcher.search("Мобильный релиз", sampleState, SearchScope.TASKS)
+        val linkedTaskMatch = GlobalSearchMatcher.search("Мобильный релиз", sampleState, SearchScope.TASKS, null) { "" }
         assertEquals(1, linkedTaskMatch.size)
         assertEquals("t1", linkedTaskMatch.first().entityId)
     }

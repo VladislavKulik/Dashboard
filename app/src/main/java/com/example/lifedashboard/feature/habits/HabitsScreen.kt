@@ -24,12 +24,11 @@ import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.ChevronLeft
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.Repeat
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -51,6 +50,8 @@ import com.example.lifedashboard.data.DateKeys
 import com.example.lifedashboard.data.HabitMetrics
 import com.example.lifedashboard.data.model.DashboardHabit
 import com.example.lifedashboard.data.model.HabitColor
+import com.example.lifedashboard.ui.components.AppFab
+import com.example.lifedashboard.ui.components.EmptySectionState
 import com.example.lifedashboard.ui.components.PastelCard
 import com.example.lifedashboard.ui.components.ScreenTopBar
 import com.example.lifedashboard.ui.theme.AppColors
@@ -67,9 +68,11 @@ fun HabitsScreen(
     onSaveHabit: (DashboardHabit, (() -> Unit)?) -> Unit,
     onToggleToday: (String) -> Unit,
     operationError: String? = null,
-    startWithCreate: Boolean = false
+    startWithCreate: Boolean = false,
+    onCreateHabit: (() -> Unit)? = null,
+    onOpenSearch: () -> Unit = {}
 ) {
-    var showAddDialog by rememberSaveable(startWithCreate) { mutableStateOf(startWithCreate) }
+    var showAddEditor by rememberSaveable(startWithCreate) { mutableStateOf(startWithCreate && onCreateHabit == null) }
     var monthOffset by rememberSaveable { mutableIntStateOf(0) }
 
     val activityPercent = remember(habits) { HabitMetrics.monthlyActivityPercent(habits) }
@@ -77,6 +80,10 @@ fun HabitsScreen(
         habits.maxOfOrNull { HabitMetrics.currentStreak(it.completionDates) } ?: 0
     }
     val todayKey = remember { DateKeys.today() }
+
+    fun triggerCreate() {
+        if (onCreateHabit != null) onCreateHabit() else showAddEditor = true
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
@@ -87,45 +94,10 @@ fun HabitsScreen(
             item {
                 ScreenTopBar(
                     title = "Привычки",
-                    actionIcon = Icons.Outlined.Add,
-                    actionDescription = "Добавить привычку",
-                    onActionClick = { showAddDialog = true },
+                    actionIcon = Icons.Outlined.Search,
+                    actionDescription = "Поиск привычек",
+                    onActionClick = onOpenSearch,
                     onBackClick = onBack
-                )
-            }
-
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    PastelCard(
-                        modifier = Modifier.weight(1f),
-                        color = AppColors.White,
-                        contentPadding = PaddingValues(18.dp),
-                        verticalArrangement = Arrangement.spacedBy(2.dp)
-                    ) {
-                        Text("$activityPercent%", color = AppColors.Ink, fontSize = 28.sp, fontWeight = FontWeight.ExtraBold)
-                        Text("за месяц", color = AppColors.Muted, fontSize = 13.sp)
-                    }
-                    PastelCard(
-                        modifier = Modifier.weight(1f),
-                        color = AppColors.White,
-                        contentPadding = PaddingValues(18.dp),
-                        verticalArrangement = Arrangement.spacedBy(2.dp)
-                    ) {
-                        Text("$bestStreak дн.", color = AppColors.Ink, fontSize = 28.sp, fontWeight = FontWeight.ExtraBold)
-                        Text("лучшая серия", color = AppColors.Muted, fontSize = 13.sp)
-                    }
-                }
-            }
-
-            item {
-                ActivityCalendarCard(
-                    habits = habits,
-                    monthOffset = monthOffset,
-                    onPreviousMonth = { monthOffset -= 1 },
-                    onNextMonth = { monthOffset += 1 }
                 )
             }
 
@@ -140,8 +112,50 @@ fun HabitsScreen(
             }
 
             if (habits.isEmpty()) {
-                item { EmptyHabitsState(onAddClick = { showAddDialog = true }) }
+                item {
+                    EmptySectionState(
+                        icon = Icons.Outlined.Repeat,
+                        iconBackground = AppColors.Mint,
+                        title = "Привычек пока нет",
+                        subtitle = "Добавьте привычку, чтобы формировать полезный ритм каждый день"
+                    )
+                }
             } else {
+                item {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        PastelCard(
+                            modifier = Modifier.weight(1f),
+                            color = AppColors.Mint,
+                            contentPadding = PaddingValues(18.dp),
+                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
+                            Text("$activityPercent%", color = AppColors.Ink, fontSize = 28.sp, fontWeight = FontWeight.ExtraBold)
+                            Text("за месяц", color = AppColors.Muted, fontSize = 13.sp)
+                        }
+                        PastelCard(
+                            modifier = Modifier.weight(1f),
+                            color = AppColors.White,
+                            contentPadding = PaddingValues(18.dp),
+                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
+                            Text("$bestStreak дн.", color = AppColors.Ink, fontSize = 28.sp, fontWeight = FontWeight.ExtraBold)
+                            Text("текущая серия", color = AppColors.Muted, fontSize = 13.sp)
+                        }
+                    }
+                }
+
+                item {
+                    ActivityCalendarCard(
+                        habits = habits,
+                        monthOffset = monthOffset,
+                        onPreviousMonth = { monthOffset -= 1 },
+                        onNextMonth = { monthOffset += 1 }
+                    )
+                }
+
                 item {
                     PastelCard(
                         modifier = Modifier.fillMaxWidth(),
@@ -165,29 +179,23 @@ fun HabitsScreen(
             }
         }
 
-        Surface(
+        AppFab(
+            icon = Icons.Outlined.Add,
+            contentDescription = "Добавить привычку",
+            onClick = ::triggerCreate,
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(20.dp)
-                .size(60.dp)
-                .clip(CircleShape)
-                .clickable(role = Role.Button) { showAddDialog = true },
-            color = AppColors.Yellow,
-            shape = CircleShape,
-            shadowElevation = 6.dp
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(Icons.Outlined.Add, contentDescription = "Добавить привычку", tint = AppColors.Ink, modifier = Modifier.size(26.dp))
-            }
-        }
+        )
     }
 
-    if (showAddDialog) {
-        HabitEditorDialog(
+    if (showAddEditor) {
+        HabitEditorScreen(
+            initialHabit = null,
             operationError = operationError,
-            onDismiss = { showAddDialog = false },
-            onSave = { habit ->
-                onSaveHabit(habit) { showAddDialog = false }
+            onBack = { showAddEditor = false },
+            onSave = { habit, _ ->
+                onSaveHabit(habit) { showAddEditor = false }
             }
         )
     }
@@ -402,20 +410,6 @@ private fun HabitRow(
                 Icon(Icons.Outlined.Check, contentDescription = "Выполнено сегодня", tint = AppColors.White, modifier = Modifier.size(15.dp))
             }
         }
-    }
-}
-
-@Composable
-private fun EmptyHabitsState(onAddClick: () -> Unit) {
-    PastelCard(
-        modifier = Modifier.fillMaxWidth(),
-        color = AppColors.White,
-        contentPadding = PaddingValues(24.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        Text("Пока нет привычек", color = AppColors.Ink, style = MaterialTheme.typography.titleLarge)
-        Text("Добавь первую привычку, чтобы начать отмечать регулярные действия.", color = AppColors.Muted, style = MaterialTheme.typography.bodyMedium)
-        TextButton(onClick = onAddClick) { Text("Добавить привычку", color = AppColors.Ink, fontWeight = FontWeight.Bold) }
     }
 }
 

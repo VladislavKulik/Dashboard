@@ -17,17 +17,15 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.ChevronLeft
 import androidx.compose.material.icons.outlined.ChevronRight
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.MoreHoriz
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -51,6 +49,7 @@ import androidx.compose.ui.unit.sp
 import com.example.lifedashboard.data.DateKeys
 import com.example.lifedashboard.data.HabitMetrics
 import com.example.lifedashboard.data.model.DashboardHabit
+import com.example.lifedashboard.ui.components.AppExtendedFab
 import com.example.lifedashboard.ui.components.CircleIconButton
 import com.example.lifedashboard.ui.components.PastelCard
 import com.example.lifedashboard.ui.theme.AppColors
@@ -88,7 +87,7 @@ fun HabitDetailsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(start = 20.dp, top = 20.dp, end = 20.dp, bottom = 92.dp),
+                .padding(start = 20.dp, top = 20.dp, end = 20.dp, bottom = 96.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Row(
@@ -172,27 +171,16 @@ fun HabitDetailsScreen(
             )
         }
 
-        Button(
+        AppExtendedFab(
+            icon = if (todayCompleted) Icons.Outlined.Close else Icons.Outlined.Check,
+            text = if (todayCompleted) "Отмечено сегодня" else "Отметить сегодня",
             onClick = onToggleToday,
+            containerColor = if (todayCompleted) AppColors.White else AppColors.Yellow,
+            contentColor = AppColors.Ink,
             modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 16.dp),
-            shape = RoundedCornerShape(28.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = if (todayCompleted) AppColors.White else AppColors.Ink,
-                contentColor = if (todayCompleted) AppColors.Ink else AppColors.White
-            ),
-            contentPadding = PaddingValues(vertical = 15.dp)
-        ) {
-            Icon(Icons.Outlined.Check, contentDescription = null, modifier = Modifier.size(18.dp))
-            Spacer(Modifier.width(8.dp))
-            Text(
-                text = if (todayCompleted) "Отменить отметку за сегодня" else "Отметить сегодня",
-                fontWeight = FontWeight.Bold,
-                fontSize = 15.sp
-            )
-        }
+                .align(Alignment.BottomEnd)
+                .padding(20.dp)
+        )
     }
 
     if (showEditor) {
@@ -221,7 +209,9 @@ fun HabitDetailsScreen(
             },
             confirmButton = {
                 TextButton(onClick = {
-                    onDeleteHabit(habit.id) { showDeleteConfirmation = false }
+                    onDeleteHabit(habit.id) {
+                        showDeleteConfirmation = false
+                    }
                 }) {
                     Text("Удалить", color = AppColors.Error, fontWeight = FontWeight.Bold)
                 }

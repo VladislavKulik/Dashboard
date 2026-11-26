@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -51,6 +52,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -76,13 +78,15 @@ fun SearchScreen(
     var query by rememberSaveable { mutableStateOf("") }
     var selectedScope by rememberSaveable(initialScope) { mutableStateOf(initialScope) }
     var selectedQuickFilter by rememberSaveable { mutableStateOf<SearchQuickFilter?>(null) }
+    
+    val context = LocalContext.current
 
     val hasActiveCriteria = query.isNotBlank() || selectedQuickFilter != null
     val scopeCounts = remember(query, selectedQuickFilter, state) {
-        GlobalSearchMatcher.countByScope(query, state, selectedQuickFilter)
+        GlobalSearchMatcher.countByScope(query, state, selectedQuickFilter) { resId -> context.getString(resId) }
     }
     val results = remember(query, selectedScope, selectedQuickFilter, state) {
-        GlobalSearchMatcher.search(query, state, selectedScope, selectedQuickFilter)
+        GlobalSearchMatcher.search(query, state, selectedScope, selectedQuickFilter) { resId -> context.getString(resId) }
     }
     val grouped = remember(results) {
         SearchScope.values()
@@ -100,15 +104,17 @@ fun SearchScreen(
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         Surface(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp),
             color = AppColors.White,
             shape = CircleShape,
             tonalElevation = 0.dp
         ) {
             Row(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = if (onBack != null) 6.dp else 14.dp, vertical = 6.dp),
+                    .fillMaxSize()
+                    .padding(horizontal = if (onBack != null) 6.dp else 16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 if (onBack != null) {
@@ -116,8 +122,13 @@ fun SearchScreen(
                         Icon(Icons.Outlined.ArrowBack, contentDescription = "Назад", tint = AppColors.Ink)
                     }
                 } else {
-                    Icon(Icons.Outlined.Search, contentDescription = null, tint = AppColors.Muted, modifier = Modifier.size(20.dp))
-                    Spacer(Modifier.width(10.dp))
+                    Icon(
+                        imageVector = Icons.Outlined.Search,
+                        contentDescription = null,
+                        tint = AppColors.Muted,
+                        modifier = Modifier.size(22.dp)
+                    )
+                    Spacer(Modifier.width(12.dp))
                 }
                 Box(
                     modifier = Modifier.weight(1f),

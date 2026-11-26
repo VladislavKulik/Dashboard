@@ -18,6 +18,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -38,6 +39,7 @@ fun ProjectEditorDialog(
     operationError: String? = null,
     initialDeadlineDate: LocalDate? = null
 ) {
+    val context = LocalContext.current
     val defaultColorArgb = AppColors.Lavender.toArgb()
     var name by remember(initialProject?.id) { mutableStateOf(initialProject?.name.orEmpty()) }
     var description by remember(initialProject?.id) { mutableStateOf(initialProject?.description.orEmpty()) }
@@ -153,7 +155,7 @@ fun ProjectEditorDialog(
                             id = base?.id ?: UUID.randomUUID().toString(),
                             name = name.trim(),
                             description = description.trim(),
-                            deadlineLabel = if (deadlineDateTouched) DateInput.formatTaskLabel(deadlineDate) else (initialProject?.deadlineLabel ?: DateInput.formatTaskLabel(deadlineDate)),
+                            deadlineLabel = if (deadlineDateTouched) DateInput.formatTaskLabel(context, deadlineDate) else (initialProject?.deadlineLabel ?: DateInput.formatTaskLabel(context, deadlineDate)),
                             deadlineDate = deadlineDate ?: if (!deadlineDateTouched) DateInput.parseLegacyLabel(initialProject?.deadlineLabel) else null,
                             stageLabel = stageLabel,
                             progress = base?.progress ?: 0f,

@@ -5,23 +5,24 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import com.example.lifedashboard.R
 
 enum class TaskDayCategory {
     TODAY,
     UPCOMING
 }
 
-enum class TaskRecurrence(val label: String) {
-    NONE("Не повторять"),
-    DAILY("Каждый день"),
-    WEEKLY("Каждую неделю"),
-    MONTHLY("Каждый месяц")
+enum class TaskRecurrence(val labelResId: Int) {
+    NONE(R.string.repeat_none),
+    DAILY(R.string.repeat_daily),
+    WEEKLY(R.string.repeat_weekly),
+    MONTHLY(R.string.repeat_monthly)
 }
 
-enum class TaskPriority(val label: String) {
-    HIGH("Высокий"),
-    MEDIUM("Средний"),
-    LOW("Низкий")
+enum class TaskPriority(val labelResId: Int) {
+    HIGH(R.string.priority_high),
+    MEDIUM(R.string.priority_medium),
+    LOW(R.string.priority_low)
 }
 
 data class DashboardTask(
@@ -96,14 +97,15 @@ data class DashboardProject(
     val colorArgb: Int,
     val isCompleted: Boolean = false,
     val stages: List<ProjectStage> = emptyList(),
-    val deadlineDate: LocalDate? = null
+    val deadlineDate: LocalDate? = null,
+    val isArchived: Boolean = false
 )
 
-enum class NoteCategory(val label: String) {
-    APP("Приложение"),
-    BLOG("Блог"),
-    PERSONAL("Личное"),
-    IDEAS("Идеи")
+enum class NoteCategory(val labelResId: Int) {
+    APP(R.string.project_app),
+    BLOG(R.string.project_blog),
+    PERSONAL(R.string.project_personal),
+    IDEAS(R.string.project_ideas)
 }
 
 enum class NoteColor {
@@ -120,10 +122,11 @@ data class DashboardNote(
     val body: String,
     val category: NoteCategory,
     val color: NoteColor = NoteColor.YELLOW,
-    val updatedLabel: String = "Только что",
+    val updatedLabel: String = "Сегодня",
     val isPinned: Boolean = false,
     val attachmentCount: Int = 0,
-    val projectId: String? = null
+    val projectId: String? = null,
+    val labels: List<String> = emptyList()
 )
 
 data class NoteAttachment(

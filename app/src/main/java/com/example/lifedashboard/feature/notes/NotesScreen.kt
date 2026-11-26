@@ -5,7 +5,6 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -43,7 +42,6 @@ import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -59,18 +57,22 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
+import com.example.lifedashboard.R
 import com.example.lifedashboard.data.local.NoteAttachmentStorage
 import com.example.lifedashboard.data.model.DashboardNote
 import com.example.lifedashboard.data.model.DashboardProject
 import com.example.lifedashboard.data.model.NoteAttachment
 import com.example.lifedashboard.data.model.NoteCategory
 import com.example.lifedashboard.data.model.NoteColor
+import com.example.lifedashboard.ui.components.AppFab
 import com.example.lifedashboard.ui.components.CircleIconButton
+import com.example.lifedashboard.ui.components.EmptySectionState
 import com.example.lifedashboard.ui.components.FilterPill
 import com.example.lifedashboard.ui.components.PastelCard
 import com.example.lifedashboard.ui.theme.AppColors
@@ -91,12 +93,19 @@ fun NotesScreen(
     onOpenSearch: () -> Unit = {}
 ) {
     var selectedCategory by rememberSaveable { mutableStateOf<NoteCategory?>(null) }
+    var selectedCustomLabel by rememberSaveable { mutableStateOf<String?>(null) }
     var selectionMode by rememberSaveable { mutableStateOf(false) }
     var selectedIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     var showBulkDeleteDialog by remember { mutableStateOf(false) }
 
+    val customLabels = remember(notes) {
+        notes.flatMap { it.labels }.distinct().sorted()
+    }
+
     val filteredNotes = notes.filter { note ->
-        selectedCategory == null || note.category == selectedCategory
+        val matchesCategory = selectedCategory == null || note.category == selectedCategory
+        val matchesLabel = selectedCustomLabel == null || note.labels.any { it.equals(selectedCustomLabel, ignoreCase = true) }
+        matchesCategory && matchesLabel
     }
 
     val pinnedNotes = remember(filteredNotes) { filteredNotes.filter { it.isPinned } }
@@ -123,7 +132,7 @@ fun NotesScreen(
                 ) {
                     CircleIconButton(
                         icon = Icons.Outlined.Close,
-                        contentDescription = "Отменить выбор",
+                        contentDescription = stringResource(R.string.action_deselect),
                         onClick = {
                             selectionMode = false
                             selectedIds = emptySet()
@@ -131,7 +140,7 @@ fun NotesScreen(
                     )
                     Spacer(Modifier.width(12.dp))
                     Text(
-                        text = "Выбрано: ${selectedIds.size}",
+                        text = stringResource(R.string.selected_count, selectedIds.size),
                         style = MaterialTheme.typography.headlineMedium,
                         color = AppColors.Ink,
                         modifier = Modifier.weight(1f)
@@ -139,7 +148,7 @@ fun NotesScreen(
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         CircleIconButton(
                             icon = Icons.Outlined.PushPin,
-                            contentDescription = "Закрепить или открепить",
+                            contentDescription = stringResource(R.string.pin_unpin),
                             onClick = {
                                 selectedIds.forEach(onTogglePinned)
                                 selectionMode = false
@@ -148,7 +157,7 @@ fun NotesScreen(
                         )
                         CircleIconButton(
                             icon = Icons.Outlined.DeleteOutline,
-                            contentDescription = "Удалить выбранные",
+                            contentDescription = stringResource(R.string.delete_selected),
                             onClick = { showBulkDeleteDialog = true }
                         )
                     }
@@ -160,12 +169,12 @@ fun NotesScreen(
                 ) {
                     CircleIconButton(
                         icon = Icons.Outlined.ArrowBack,
-                        contentDescription = "Назад",
+                        contentDescription = stringResource(R.string.action_back),
                         onClick = onBack
                     )
                     Spacer(Modifier.width(12.dp))
                     Text(
-                        text = "Заметки",
+                        text = stringResource(R.string.notes_title),
                         style = MaterialTheme.typography.headlineLarge,
                         color = AppColors.Ink,
                         modifier = Modifier.weight(1f)
@@ -173,14 +182,14 @@ fun NotesScreen(
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         CircleIconButton(
                             icon = Icons.Outlined.GridView,
-                            contentDescription = "Режим выбора",
+                            contentDescription = stringResource(R.string.selection_mode),
                             onClick = {
                                 if (notes.isNotEmpty()) selectionMode = true
                             }
                         )
                         CircleIconButton(
                             icon = Icons.Outlined.Search,
-                            contentDescription = "Поиск заметок",
+                            contentDescription = stringResource(R.string.search_notes),
                             onClick = onOpenSearch
                         )
                     }
@@ -191,7 +200,7 @@ fun NotesScreen(
                 Text(message, color = AppColors.Error, fontSize = 12.sp)
             }
 
-            if (!selectionMode) {
+            if (!selectionMode && notes.isNotEmpty()) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -199,16 +208,32 @@ fun NotesScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     FilterPill(
-                        label = "Все",
-                        selected = selectedCategory == null,
-                        onClick = { selectedCategory = null }
+                        label = stringResource(R.string.filter_all),
+                        selected = selectedCategory == null && selectedCustomLabel == null,
+                        onClick = {
+                            selectedCategory = null
+                            selectedCustomLabel = null
+                        }
                     )
+                    customLabels.forEach { label ->
+                        FilterPill(
+                            label = label,
+                            selected = selectedCustomLabel == label,
+                            onClick = {
+                                selectedCategory = null
+                                selectedCustomLabel = if (selectedCustomLabel == label) null else label
+                            }
+                        )
+                    }
                     NoteCategory.values().forEach { category ->
-                        if (notes.any { it.category == category }) {
+                        if (notes.any { it.category == category && it.labels.isEmpty() }) {
                             FilterPill(
-                                label = category.label,
+                                label = stringResource(id = category.labelResId),
                                 selected = selectedCategory == category,
-                                onClick = { selectedCategory = category }
+                                onClick = {
+                                    selectedCustomLabel = null
+                                    selectedCategory = if (selectedCategory == category) null else category
+                                }
                             )
                         }
                     }
@@ -216,16 +241,23 @@ fun NotesScreen(
             }
 
             if (filteredNotes.isEmpty()) {
-                NotesEmptyState(
-                    hasFilter = selectedCategory != null,
-                    onCreateNote = onCreateNote,
+                val hasFilter = selectedCategory != null || selectedCustomLabel != null
+                EmptySectionState(
+                    icon = Icons.Outlined.Description,
+                    iconBackground = AppColors.Yellow,
+                    title = if (hasFilter) stringResource(R.string.notes_empty_filtered) else stringResource(R.string.goals_empty_title),
+                    subtitle = if (hasFilter) {
+                        stringResource(R.string.notes_empty_filtered_sub)
+                    } else {
+                        stringResource(R.string.notes_empty_sub)
+                    },
                     modifier = Modifier.weight(1f)
                 )
             } else {
                 LazyVerticalStaggeredGrid(
                     columns = StaggeredGridCells.Fixed(2),
                     modifier = Modifier.weight(1f).fillMaxWidth(),
-                    contentPadding = PaddingValues(bottom = 92.dp),
+                    contentPadding = PaddingValues(bottom = 96.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalItemSpacing = 12.dp
                 ) {
@@ -237,7 +269,7 @@ fun NotesScreen(
                                 modifier = Modifier.padding(top = 2.dp)
                             ) {
                                 Icon(Icons.Outlined.PushPin, contentDescription = null, tint = AppColors.Muted, modifier = Modifier.size(14.dp))
-                                Text("Закреплённые", color = AppColors.Muted, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                                Text(stringResource(R.string.pinned_section), color = AppColors.Muted, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                             }
                         }
                         items(pinnedNotes, key = { "pin-${it.id}" }) { note ->
@@ -262,7 +294,7 @@ fun NotesScreen(
                         if (pinnedNotes.isNotEmpty()) {
                             item(span = StaggeredGridItemSpan.FullLine) {
                                 Text(
-                                    text = "Другие",
+                                    text = stringResource(R.string.other_section),
                                     color = AppColors.Muted,
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.SemiBold,
@@ -292,34 +324,22 @@ fun NotesScreen(
         }
 
         if (!selectionMode) {
-            Surface(
+            AppFab(
+                icon = Icons.Outlined.Add,
+                contentDescription = stringResource(R.string.create_note),
+                onClick = onCreateNote,
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .padding(20.dp)
-                    .size(60.dp)
-                    .clip(CircleShape)
-                    .clickable(role = Role.Button, onClick = onCreateNote),
-                color = AppColors.Yellow,
-                shape = CircleShape,
-                shadowElevation = 6.dp
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = Icons.Outlined.Add,
-                        contentDescription = "Создать заметку",
-                        tint = AppColors.Ink,
-                        modifier = Modifier.size(26.dp)
-                    )
-                }
-            }
+            )
         }
     }
 
     if (showBulkDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showBulkDeleteDialog = false },
-            title = { Text("Удалить выбранные заметки?", color = AppColors.Ink) },
-            text = { Text("Будет удалено заметок: ${selectedIds.size}.", color = AppColors.Muted) },
+            title = { Text(stringResource(R.string.bulk_delete_title), color = AppColors.Ink) },
+            text = { Text(stringResource(R.string.bulk_delete_confirm, selectedIds.size), color = AppColors.Muted) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -328,10 +348,10 @@ fun NotesScreen(
                         selectionMode = false
                         showBulkDeleteDialog = false
                     }
-                ) { Text("Удалить", color = AppColors.Error) }
+                ) { Text(stringResource(R.string.action_delete), color = AppColors.Error) }
             },
             dismissButton = {
-                TextButton(onClick = { showBulkDeleteDialog = false }) { Text("Отмена", color = AppColors.Muted) }
+                TextButton(onClick = { showBulkDeleteDialog = false }) { Text(stringResource(R.string.action_cancel), color = AppColors.Muted) }
             },
             containerColor = AppColors.White
         )
@@ -350,14 +370,29 @@ private fun NoteCard(
     onLongClick: () -> Unit
 ) {
     val firstImage = remember(noteAttachments) { noteAttachments.firstOrNull { it.isImage } }
-    val previewBitmap by produceState<Bitmap?>(initialValue = null, key1 = firstImage?.localPath) {
-        value = firstImage?.let { NoteAttachmentStorage.loadThumbnail(it.localPath, maxEdgePx = 380) }
+    val hasImageSlot = firstImage != null
+    val initialCachedBitmap = remember(firstImage?.localPath) {
+        firstImage?.let { NoteAttachmentStorage.getCachedThumbnail(it.localPath, maxEdgePx = 380) }
     }
+    val previewBitmap by produceState<Bitmap?>(initialValue = initialCachedBitmap, key1 = firstImage?.localPath) {
+        if (value == null && firstImage != null) {
+            value = NoteAttachmentStorage.loadThumbnail(firstImage.localPath, maxEdgePx = 380)
+        }
+    }
+
     val realCount = maxOf(note.attachmentCount, noteAttachments.size)
-    val cardBg = if (previewBitmap != null || (note.category == NoteCategory.BLOG && realCount > 0)) {
-        AppColors.White
-    } else {
-        noteColor(note.color)
+    val cardBg = if (hasImageSlot) AppColors.White else noteColor(note.color)
+
+    val categoryLabel = stringResource(id = note.category.labelResId)
+    val displayBadges = remember(note.labels, projectName, categoryLabel) {
+        buildList {
+            if (!projectName.isNullOrBlank()) add(projectName)
+            if (note.labels.isNotEmpty()) {
+                addAll(note.labels.take(2))
+            } else if (projectName.isNullOrBlank()) {
+                add(categoryLabel)
+            }
+        }
     }
 
     Box {
@@ -374,31 +409,31 @@ private fun NoteCard(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            if (previewBitmap != null) {
-                Image(
-                    bitmap = previewBitmap!!.asImageBitmap(),
-                    contentDescription = firstImage?.displayName,
-                    contentScale = ContentScale.Crop,
+            // Fixed-height 92.dp image container reserved on Frame 0 so staggered grid NEVER jumps
+            if (hasImageSlot) {
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(92.dp)
                         .clip(RoundedCornerShape(16.dp))
-                )
-            } else if (note.category == NoteCategory.BLOG && realCount > 0) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(82.dp)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(AppColors.Blue),
+                        .background(AppColors.Background),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Image,
-                        contentDescription = "Вложение",
-                        tint = AppColors.Ink,
-                        modifier = Modifier.size(26.dp)
-                    )
+                    if (previewBitmap != null) {
+                        Image(
+                            bitmap = previewBitmap!!.asImageBitmap(),
+                            contentDescription = firstImage?.displayName,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Outlined.Image,
+                            contentDescription = null,
+                            tint = AppColors.Muted.copy(alpha = 0.55f),
+                            modifier = Modifier.size(26.dp)
+                        )
+                    }
                 }
             }
 
@@ -410,7 +445,7 @@ private fun NoteCard(
                 overflow = TextOverflow.Ellipsis
             )
 
-            if (note.body.isNotBlank() && previewBitmap == null && !(note.category == NoteCategory.BLOG && realCount > 0)) {
+            if (note.body.isNotBlank() && !hasImageSlot) {
                 Text(
                     text = note.body,
                     color = AppColors.Muted,
@@ -424,7 +459,7 @@ private fun NoteCard(
             if (realCount > 0) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     Icon(Icons.Outlined.AttachFile, contentDescription = null, tint = AppColors.Muted, modifier = Modifier.size(14.dp))
-                    Text("$realCount влож.", color = AppColors.Muted, fontSize = 12.sp)
+                    Text(stringResource(R.string.attachments_count_short, realCount), color = AppColors.Muted, fontSize = 12.sp)
                 }
             }
 
@@ -432,20 +467,22 @@ private fun NoteCard(
                 modifier = Modifier.horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                Box(
-                    modifier = Modifier
-                        .clip(CircleShape)
-                        .border(1.dp, AppColors.Ink.copy(alpha = 0.14f), CircleShape)
-                        .background(AppColors.White.copy(alpha = 0.55f))
-                        .padding(horizontal = 10.dp, vertical = 4.dp)
-                ) {
-                    Text(
-                        text = projectName ?: note.category.label,
-                        color = AppColors.Ink,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1
-                    )
+                displayBadges.forEach { badge ->
+                    Box(
+                        modifier = Modifier
+                            .clip(CircleShape)
+                            .border(1.dp, AppColors.Ink.copy(alpha = 0.14f), CircleShape)
+                            .background(AppColors.White.copy(alpha = 0.55f))
+                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = badge,
+                            color = AppColors.Ink,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1
+                        )
+                    }
                 }
             }
         }
@@ -459,57 +496,17 @@ private fun NoteCard(
                     .clip(CircleShape)
                     .then(
                         if (selected) Modifier.background(AppColors.Ink)
-                        else Modifier.background(AppColors.White.copy(alpha = 0.9f))
+                        else Modifier
+                            .background(AppColors.White.copy(alpha = 0.9f))
                             .border(1.5.dp, AppColors.Ink, CircleShape)
                     ),
                 contentAlignment = Alignment.Center
             ) {
                 if (selected) {
-                    Icon(Icons.Outlined.Check, contentDescription = "Выбрано", tint = AppColors.White, modifier = Modifier.size(14.dp))
+                    Icon(Icons.Outlined.Check, contentDescription = stringResource(R.string.state_selected), tint = AppColors.White, modifier = Modifier.size(14.dp))
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun NotesEmptyState(
-    hasFilter: Boolean,
-    onCreateNote: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    PastelCard(
-        modifier = modifier.fillMaxWidth(),
-        color = AppColors.White,
-        contentPadding = PaddingValues(24.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        Icon(
-            imageVector = Icons.Outlined.Description,
-            contentDescription = null,
-            tint = AppColors.Muted,
-            modifier = Modifier.size(30.dp)
-        )
-        Text(
-            text = if (hasFilter) "В этой категории пусто" else "Заметок пока нет",
-            style = MaterialTheme.typography.titleLarge,
-            color = AppColors.Ink
-        )
-        Text(
-            text = if (hasFilter) "Выбери другую категорию или создай заметку." else "Создай первую заметку — она появится здесь.",
-            color = AppColors.Muted,
-            style = MaterialTheme.typography.bodyMedium
-        )
-        Text(
-            text = "Создать заметку",
-            color = AppColors.Ink,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier
-                .clip(RoundedCornerShape(16.dp))
-                .background(AppColors.Yellow)
-                .clickable(onClick = onCreateNote)
-                .padding(horizontal = 16.dp, vertical = 11.dp)
-        )
     }
 }
 

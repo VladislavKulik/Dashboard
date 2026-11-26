@@ -9,4 +9,5 @@ interface ProjectsRepository {
     suspend fun saveProject(project: DashboardProject)
     suspend fun deleteProject(projectId: String): Boolean
     suspend fun toggleStage(projectId: String, stageId: String): Boolean
+    suspend fun toggleArchived(projectId: String): Boolean
 }

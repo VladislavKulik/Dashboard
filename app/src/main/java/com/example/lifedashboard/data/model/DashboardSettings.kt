@@ -1,5 +1,7 @@
 package com.example.lifedashboard.data.model
 
+import com.example.lifedashboard.R
+
 /** Persisted, app-wide preferences. Defaults preserve the current light-dashboard experience. */
 enum class DashboardThemeMode {
     SYSTEM,
@@ -7,11 +9,11 @@ enum class DashboardThemeMode {
     DARK
 }
 
-enum class HomeBlockType(val title: String, val description: String) {
-    STATS("Сводка дня", "Пилюли со статистикой задач, проектов и прогресса"),
-    QUICK_ACCESS("Быстрый доступ", "Быстрые переходы к задачам, заметкам и привычкам"),
-    TODAY_TASKS("Задачи на сегодня", "Приоритетные задачи текущего дня"),
-    ACTIVITY("Активность и события", "График за 7 дней и последние действия")
+enum class HomeBlockType(val titleResId: Int, val descResId: Int) {
+    STATS(R.string.settings_stats_title, R.string.settings_stats_desc),
+    QUICK_ACCESS(R.string.settings_quick_access_title, R.string.settings_quick_access_desc),
+    TODAY_TASKS(R.string.settings_today_tasks_title, R.string.settings_today_tasks_desc),
+    ACTIVITY(R.string.settings_activity_title, R.string.settings_activity_desc)
 }
 
 data class HomeBlockConfig(

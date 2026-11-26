@@ -1,11 +1,11 @@
 package com.example.lifedashboard.feature.projects
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -15,22 +15,26 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CalendarMonth
-import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material.icons.outlined.FolderOpen
+import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.Palette
+import androidx.compose.material.icons.outlined.Undo
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -40,19 +44,26 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.lifedashboard.data.DateInput
 import com.example.lifedashboard.data.model.DashboardProject
 import com.example.lifedashboard.ui.components.CircleIconButton
+import com.example.lifedashboard.ui.components.ColorPaletteSheet
 import com.example.lifedashboard.ui.components.DateTimePickerSheet
 import com.example.lifedashboard.ui.components.EditorBottomBar
-import com.example.lifedashboard.ui.components.PastelCard
+import com.example.lifedashboard.ui.components.EditorPropertyChip
+import com.example.lifedashboard.ui.components.EditorToolButton
+import com.example.lifedashboard.ui.components.PaletteColorOption
 import com.example.lifedashboard.ui.theme.AppColors
 import java.time.LocalDate
 import java.util.UUID
 
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun ProjectEditorScreen(
     initialProject: DashboardProject?,
@@ -61,6 +72,8 @@ fun ProjectEditorScreen(
     operationError: String? = null,
     initialDeadlineDate: LocalDate? = null
 ) {
+    val context = LocalContext.current
+    val clipboard = LocalClipboardManager.current
     val defaultArgb = AppColors.Lavender.toArgb()
     var name by rememberSaveable(initialProject?.id) { mutableStateOf(initialProject?.name.orEmpty()) }
     var description by rememberSaveable(initialProject?.id) { mutableStateOf(initialProject?.description.orEmpty()) }
@@ -76,14 +89,30 @@ fun ProjectEditorScreen(
         mutableStateOf(initialProject == null && initialDeadlineDate != null)
     }
     var colorArgb by rememberSaveable(initialProject?.id) { mutableIntStateOf(initialProject?.colorArgb ?: defaultArgb) }
+
+    val descHistory = remember(initialProject?.id) { mutableStateListOf(initialProject?.description.orEmpty()) }
+    var descHistoryIndex by remember(initialProject?.id) { mutableIntStateOf(0) }
+
+    fun updateDescription(newText: String) {
+        if (newText == description) return
+        description = newText
+        while (descHistory.lastIndex > descHistoryIndex) {
+            descHistory.removeAt(descHistory.lastIndex)
+        }
+        descHistory.add(newText)
+        descHistoryIndex = descHistory.lastIndex
+    }
+
     var showDateSheet by remember { mutableStateOf(false) }
+    var showPaletteSheet by remember { mutableStateOf(false) }
+    var showMoreSheet by remember { mutableStateOf(false) }
 
     val paletteOptions = listOf(
-        AppColors.Yellow,
-        AppColors.Pink,
-        AppColors.Mint,
-        AppColors.Lavender,
-        AppColors.Blue
+        PaletteColorOption(AppColors.Lavender.toArgb(), "Лавандовый", AppColors.Lavender),
+        PaletteColorOption(AppColors.Yellow.toArgb(), "Жёлтый", AppColors.Yellow),
+        PaletteColorOption(AppColors.Mint.toArgb(), "Мятный", AppColors.Mint),
+        PaletteColorOption(AppColors.Pink.toArgb(), "Розовый", AppColors.Pink),
+        PaletteColorOption(AppColors.Blue.toArgb(), "Голубой", AppColors.Blue)
     )
 
     fun saveProject() {
@@ -91,9 +120,9 @@ fun ProjectEditorScreen(
         if (name.isBlank()) return
         val resolvedDeadline = deadlineDate ?: if (!deadlineTouched) DateInput.parseLegacyLabel(initialProject?.deadlineLabel) else null
         val resolvedLabel = if (deadlineTouched) {
-            DateInput.formatTaskLabel(resolvedDeadline)
+            DateInput.formatTaskLabel(context, resolvedDeadline)
         } else {
-            initialProject?.deadlineLabel ?: DateInput.formatTaskLabel(resolvedDeadline)
+            initialProject?.deadlineLabel ?: DateInput.formatTaskLabel(context, resolvedDeadline)
         }
         val allTasksCompleted = initialProject != null &&
             initialProject.totalTasks > 0 &&
@@ -112,7 +141,8 @@ fun ProjectEditorScreen(
                 totalTasks = initialProject?.totalTasks ?: 0,
                 colorArgb = colorArgb,
                 isCompleted = initialProject?.isCompleted ?: allTasksCompleted,
-                stages = emptyList()
+                stages = emptyList(),
+                isArchived = initialProject?.isArchived ?: false
             ),
             onBack
         )
@@ -122,7 +152,7 @@ fun ProjectEditorScreen(
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(start = 20.dp, top = 20.dp, end = 20.dp, bottom = 104.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             item {
                 Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -167,11 +197,12 @@ fun ProjectEditorScreen(
             item {
                 OutlinedTextField(
                     value = description,
-                    onValueChange = { description = it },
+                    onValueChange = ::updateDescription,
                     modifier = Modifier.fillMaxWidth(),
-                    minLines = 3,
+                    minLines = 6,
+                    maxLines = 16,
                     label = { Text("Описание") },
-                    placeholder = { Text("Кратко о цели проекта") },
+                    placeholder = { Text("Кратко о цели и деталях проекта") },
                     shape = RoundedCornerShape(16.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = AppColors.White,
@@ -183,50 +214,25 @@ fun ProjectEditorScreen(
             }
 
             item {
-                PastelCard(
-                    color = AppColors.White,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { showDateSheet = true },
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp)
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Text("Дедлайн", color = AppColors.Muted, fontSize = 11.sp)
-                            Text(
-                                text = deadlineDate?.let { DateInput.formatForInput(it) } ?: "Выбрать дату",
-                                color = if (deadlineDate == null) AppColors.Muted else AppColors.Ink,
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
-                        Icon(Icons.Outlined.CalendarMonth, contentDescription = "Выбрать дату", tint = AppColors.Ink)
-                    }
-                }
-            }
-
-            item {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("Цвет карточки", color = AppColors.Muted, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        paletteOptions.forEach { option ->
-                            val argb = option.toArgb()
-                            val selected = colorArgb == argb
-                            Box(
-                                modifier = Modifier
-                                    .size(38.dp)
-                                    .clip(CircleShape)
-                                    .background(option)
-                                    .then(if (selected) Modifier.border(2.dp, AppColors.Ink, CircleShape) else Modifier)
-                                    .clickable { colorArgb = argb },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                if (selected) {
-                                    Icon(Icons.Outlined.Check, contentDescription = "Выбрано", tint = AppColors.Ink, modifier = Modifier.size(16.dp))
-                                }
-                            }
-                        }
-                    }
+                    EditorPropertyChip(
+                        icon = Icons.Outlined.Palette,
+                        label = paletteOptions.firstOrNull { it.value == colorArgb }?.label ?: "Цвет",
+                        backgroundColor = Color(colorArgb),
+                        onClick = { showPaletteSheet = true }
+                    )
+                    EditorPropertyChip(
+                        icon = Icons.Outlined.CalendarMonth,
+                        label = deadlineDate?.let { "Дедлайн: ${DateInput.formatTaskLabel(context, it)}" } ?: "Без дедлайна",
+                        onClick = { showDateSheet = true },
+                        onClear = if (deadlineDate != null) ({
+                            deadlineDate = null
+                            deadlineTouched = true
+                        }) else null
+                    )
                 }
             }
         }
@@ -236,15 +242,33 @@ fun ProjectEditorScreen(
             onConfirm = ::saveProject,
             modifier = Modifier.align(Alignment.BottomCenter)
         ) {
-            IconButton(onClick = { showDateSheet = true }) {
-                Icon(Icons.Outlined.CalendarMonth, contentDescription = "Дедлайн", tint = AppColors.Ink)
-            }
-            IconButton(onClick = {
-                val idx = paletteOptions.indexOfFirst { it.toArgb() == colorArgb }
-                colorArgb = paletteOptions[(idx + 1) % paletteOptions.size].toArgb()
-            }) {
-                Icon(Icons.Outlined.FolderOpen, contentDescription = "Сменить цвет", tint = AppColors.Ink)
-            }
+            EditorToolButton(
+                icon = Icons.Outlined.CalendarMonth,
+                contentDescription = "Дедлайн проекта",
+                isActive = deadlineDate != null,
+                onClick = { showDateSheet = true }
+            )
+            EditorToolButton(
+                icon = Icons.Outlined.Palette,
+                contentDescription = "Цвет карточки",
+                onClick = { showPaletteSheet = true }
+            )
+            EditorToolButton(
+                icon = Icons.Outlined.Undo,
+                contentDescription = "Отменить ввод описания",
+                enabled = descHistoryIndex > 0,
+                onClick = {
+                    if (descHistoryIndex > 0) {
+                        descHistoryIndex -= 1
+                        description = descHistory[descHistoryIndex]
+                    }
+                }
+            )
+            EditorToolButton(
+                icon = Icons.Outlined.MoreVert,
+                contentDescription = "Ещё",
+                onClick = { showMoreSheet = true }
+            )
         }
     }
 
@@ -260,5 +284,50 @@ fun ProjectEditorScreen(
                 showDateSheet = false
             }
         )
+    }
+
+    if (showPaletteSheet) {
+        ColorPaletteSheet(
+            title = "Цвет проекта",
+            options = paletteOptions,
+            selected = colorArgb,
+            onSelect = { colorArgb = it },
+            onDismiss = { showPaletteSheet = false }
+        )
+    }
+
+    if (showMoreSheet) {
+        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        ModalBottomSheet(
+            onDismissRequest = { showMoreSheet = false },
+            sheetState = sheetState,
+            containerColor = AppColors.White,
+            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+                    .padding(bottom = 28.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .clickable {
+                            showMoreSheet = false
+                            val text = listOf(name.trim(), description.trim()).filter { it.isNotBlank() }.joinToString("\n\n")
+                            if (text.isNotBlank()) clipboard.setText(AnnotatedString(text))
+                        }
+                        .padding(horizontal = 6.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Outlined.ContentCopy, contentDescription = null, tint = AppColors.Ink, modifier = Modifier.size(22.dp))
+                    Spacer(Modifier.width(16.dp))
+                    Text("Скопировать описание", color = AppColors.Ink, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                }
+            }
+        }
     }
 }

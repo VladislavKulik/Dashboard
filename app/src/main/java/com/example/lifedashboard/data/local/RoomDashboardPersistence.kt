@@ -1,6 +1,7 @@
 package com.example.lifedashboard.data.local
 
 import android.content.Context
+import com.example.lifedashboard.R
 import androidx.room.Room
 import androidx.room.withTransaction
 import com.example.lifedashboard.data.DashboardSeedData
@@ -32,6 +33,9 @@ import com.example.lifedashboard.data.repository.NotesRepository
 import com.example.lifedashboard.data.repository.ProjectsRepository
 import com.example.lifedashboard.data.repository.TaskRepository
 import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -122,39 +126,27 @@ class RoomDashboardPersistence private constructor(context: Context) :
                 if (TaskRecurrenceCalculator.canCreateNext(nextDate, current.recurrenceEndDate, nextRemaining) &&
                     dao.getTaskForSeriesDate(seriesId, nextDate.toString()) == null
                 ) {
-                    if (current.recurrenceSeriesId == null) dao.updateTask(current.copy(recurrenceSeriesId = seriesId))
+                    if (current.recurrenceSeriesId == null) {
+                        dao.updateTask(updatedTask.copy(recurrenceSeriesId = seriesId))
+                    }
                     dao.insertTask(
                         current.copy(
                             id = UUID.randomUUID().toString(),
-                            dueLabel = DateInput.formatTaskLabel(nextDate),
+                            dueLabel = DateInput.formatTaskLabel(appContext, nextDate),
                             dueDate = nextDate,
                             dayCategory = DateInput.categoryFor(nextDate)?.name ?: TaskDayCategory.UPCOMING.name,
                             isCompleted = false,
-                            showOnHome = false,
+                            showOnHome = nextDate == LocalDate.now(),
                             recurrenceSeriesId = seriesId,
                             recurrenceAnchorDay = current.recurrenceAnchorDay.takeIf { it in 1..31 } ?: current.dueDate.dayOfMonth,
                             recurrenceRemainingCount = nextRemaining,
                             sortOrder = dao.nextTaskSortOrder()
                         )
                     )
-                    current.projectId?.let { changeProjectTaskCounters(it, 1, 0) }
                 }
             }
 
-            current.projectId?.let { projectId ->
-                val project = dao.getProject(projectId)
-                if (project != null) {
-                    val completed = (project.completedTasks + if (updatedTask.isCompleted) 1 else -1)
-                        .coerceIn(0, project.totalTasks)
-                    dao.updateProject(
-                        project.copy(
-                            completedTasks = completed,
-                            progress = if (project.totalTasks == 0) 0f else completed.toFloat() / project.totalTasks,
-                            isCompleted = project.totalTasks > 0 && completed == project.totalTasks
-                        )
-                    )
-                }
-            }
+            current.projectId?.let { recalculateProjectTaskCounters(it) }
 
             dao.insertEvent(
                 ActivityEventEntity(
@@ -194,18 +186,19 @@ class RoomDashboardPersistence private constructor(context: Context) :
             database.withTransaction {
                 if (projectId != null && dao.getProject(projectId) == null) return@withTransaction false
                 val taskId = UUID.randomUUID().toString()
+                val category = DateInput.categoryFor(dueDate) ?: TaskDayCategory.UPCOMING
                 dao.insertTask(
                     TaskEntity(
                         id = taskId,
                         title = cleanTitle,
                         trailingLabel = null,
-                        dueLabel = DateInput.formatTaskLabel(dueDate),
+                        dueLabel = DateInput.formatTaskLabel(appContext, dueDate),
                         dueDate = dueDate,
                         projectId = projectId,
-                        dayCategory = DateInput.categoryFor(dueDate)?.name ?: TaskDayCategory.UPCOMING.name,
+                        dayCategory = category.name,
                         priority = priority.name,
                         isCompleted = false,
-                        showOnHome = false,
+                        showOnHome = category == TaskDayCategory.TODAY,
                         sortOrder = dao.nextTaskSortOrder(),
                         recurrence = recurrence.name,
                         recurrenceDays = if (recurrence == TaskRecurrence.WEEKLY) validRecurrenceDays.sorted().joinToString(",") else "",
@@ -218,7 +211,7 @@ class RoomDashboardPersistence private constructor(context: Context) :
                         plannedMinutes = normalizedPlanned
                     )
                 )
-                projectId?.let { changeProjectTaskCounters(it, totalDelta = 1, completedDelta = 0) }
+                projectId?.let { recalculateProjectTaskCounters(it) }
                 true
             }
         }
@@ -235,7 +228,7 @@ class RoomDashboardPersistence private constructor(context: Context) :
                 val updated = current.copy(
                     title = cleanTitle,
                     trailingLabel = task.trailingLabel,
-                    dueLabel = task.dueLabel.trim().ifBlank { "Без срока" },
+                    dueLabel = task.dueLabel.trim().ifBlank { appContext.getString(R.string.date_no_deadline) },
                     dueDate = task.dueDate,
                     projectId = newProjectId,
                     dayCategory = task.dayCategory.name,
@@ -255,8 +248,8 @@ class RoomDashboardPersistence private constructor(context: Context) :
                 )
                 dao.updateTask(updated)
                 if (current.projectId != newProjectId) {
-                    current.projectId?.let { changeProjectTaskCounters(it, -1, if (current.isCompleted) -1 else 0) }
-                    newProjectId?.let { changeProjectTaskCounters(it, 1, if (updated.isCompleted) 1 else 0) }
+                    current.projectId?.let { recalculateProjectTaskCounters(it) }
+                    newProjectId?.let { recalculateProjectTaskCounters(it) }
                 }
                 true
             }
@@ -282,18 +275,17 @@ class RoomDashboardPersistence private constructor(context: Context) :
                     dao.insertTask(
                         current.copy(
                             id = UUID.randomUUID().toString(),
-                            dueLabel = DateInput.formatTaskLabel(nextDate!!),
+                            dueLabel = DateInput.formatTaskLabel(appContext, nextDate!!),
                             dueDate = nextDate,
                             dayCategory = DateInput.categoryFor(nextDate)?.name ?: TaskDayCategory.UPCOMING.name,
                             isCompleted = false,
-                            showOnHome = false,
+                            showOnHome = nextDate == LocalDate.now(),
                             recurrenceSeriesId = seriesId,
                             recurrenceAnchorDay = current.recurrenceAnchorDay.takeIf { it in 1..31 } ?: current.dueDate.dayOfMonth,
                             recurrenceRemainingCount = nextRemaining,
                             sortOrder = dao.nextTaskSortOrder()
                         )
                     )
-                    current.projectId?.let { changeProjectTaskCounters(it, 1, 0) }
                 }
                 dao.insertEvent(
                     ActivityEventEntity(
@@ -308,7 +300,7 @@ class RoomDashboardPersistence private constructor(context: Context) :
             dao.deleteSubtasksForTask(taskId)
             dao.deleteTimerSessionsForTask(taskId)
             dao.deleteTask(taskId)
-            current.projectId?.let { changeProjectTaskCounters(it, -1, if (current.isCompleted) -1 else 0) }
+            current.projectId?.let { recalculateProjectTaskCounters(it) }
             true
         }
     }
@@ -358,16 +350,16 @@ class RoomDashboardPersistence private constructor(context: Context) :
         }
     }
 
-    private suspend fun changeProjectTaskCounters(projectId: String, totalDelta: Int, completedDelta: Int) {
+    private suspend fun recalculateProjectTaskCounters(projectId: String) {
         val project = dao.getProject(projectId) ?: return
-        val total = (project.totalTasks + totalDelta).coerceAtLeast(0)
-        val completed = (project.completedTasks + completedDelta).coerceIn(0, total)
+        val total = dao.countTasksForProject(projectId).coerceAtLeast(0)
+        val completed = dao.countCompletedTasksForProject(projectId).coerceIn(0, total)
         dao.updateProject(
             project.copy(
                 totalTasks = total,
                 completedTasks = completed,
                 progress = if (total == 0) 0f else completed.toFloat() / total,
-                isCompleted = project.isCompleted || (total > 0 && completed == total)
+                isCompleted = total > 0 && completed == total
             )
         )
     }
@@ -380,9 +372,10 @@ class RoomDashboardPersistence private constructor(context: Context) :
 
     override suspend fun saveNote(note: DashboardNote) {
         val normalized = note.copy(
-            title = note.title.trim().ifBlank { "Без названия" },
+            title = note.title.trim().ifBlank { appContext.getString(R.string.default_task_title) },
             body = note.body.trim(),
-            updatedLabel = "Только что"
+            updatedLabel = formatNowTimestampLabel(),
+            labels = note.labels.map { it.trim() }.filter { it.isNotBlank() }.distinct()
         )
         writeMutex.withLock {
             database.withTransaction {
@@ -411,7 +404,7 @@ class RoomDashboardPersistence private constructor(context: Context) :
         writeMutex.withLock {
             database.withTransaction {
                 dao.getNote(noteId)?.let { current ->
-                    dao.insertNote(current.copy(isPinned = !current.isPinned, updatedLabel = "Только что"))
+                    dao.insertNote(current.copy(isPinned = !current.isPinned))
                 }
             }
         }
@@ -423,7 +416,7 @@ class RoomDashboardPersistence private constructor(context: Context) :
             dao.insertNoteAttachment(attachment.toEntity())
             if (existingNote != null) {
                 val total = dao.countAttachmentsForNote(attachment.noteId)
-                dao.insertNote(existingNote.copy(attachmentCount = total, updatedLabel = "Только что"))
+                dao.insertNote(existingNote.copy(attachmentCount = total, updatedLabel = formatNowTimestampLabel()))
             }
             true
         }
@@ -436,7 +429,7 @@ class RoomDashboardPersistence private constructor(context: Context) :
                 dao.deleteNoteAttachment(attachmentId)
                 dao.getNote(current.noteId)?.let { note ->
                     val total = dao.countAttachmentsForNote(current.noteId)
-                    dao.insertNote(note.copy(attachmentCount = total, updatedLabel = "Только что"))
+                    dao.insertNote(note.copy(attachmentCount = total, updatedLabel = formatNowTimestampLabel()))
                 }
                 current
             }
@@ -520,14 +513,16 @@ class RoomDashboardPersistence private constructor(context: Context) :
         writeMutex.withLock {
             database.withTransaction {
                 val existing = dao.getProject(project.id)
-                val totalTasks = existing?.totalTasks ?: project.totalTasks
-                val completedTasks = existing?.completedTasks ?: project.completedTasks
-                val progress = if (totalTasks == 0) project.progress else completedTasks.toFloat() / totalTasks
+                val totalTasks = dao.countTasksForProject(project.id)
+                val completedTasks = dao.countCompletedTasksForProject(project.id).coerceIn(0, totalTasks)
+                val progress = if (totalTasks == 0) 0f else completedTasks.toFloat() / totalTasks
                 dao.insertProject(
                     project.copy(
                         totalTasks = totalTasks,
                         completedTasks = completedTasks,
-                        progress = progress
+                        progress = progress,
+                        isCompleted = totalTasks > 0 && completedTasks == totalTasks,
+                        isArchived = existing?.isArchived ?: project.isArchived
                     ).toEntity()
                 )
                 dao.deleteStagesForProject(project.id)
@@ -546,6 +541,14 @@ class RoomDashboardPersistence private constructor(context: Context) :
             dao.detachNotesFromProject(projectId)
             dao.deleteStagesForProject(projectId)
             dao.deleteProject(projectId)
+            true
+        }
+    }
+
+    override suspend fun toggleArchived(projectId: String): Boolean = writeMutex.withLock {
+        database.withTransaction {
+            val current = dao.getProject(projectId) ?: return@withTransaction false
+            dao.updateProject(current.copy(isArchived = !current.isArchived))
             true
         }
     }
@@ -574,9 +577,9 @@ class RoomDashboardPersistence private constructor(context: Context) :
                 val completedCount = updated.count { it.isCompleted }
                 val currentIndex = updated.indexOfFirst { it.isCurrent }
                 val label = when {
-                    updated.isNotEmpty() && completedCount == updated.size -> "Все этапы завершены"
-                    currentIndex >= 0 -> "Этап ${currentIndex + 1} из ${updated.size}"
-                    else -> "Этап ${completedCount + 1} из ${updated.size}"
+                    updated.isNotEmpty() && completedCount == updated.size -> appContext.getString(R.string.stage_all_completed)
+                    currentIndex >= 0 -> appContext.getString(R.string.stage_progress, currentIndex + 1, updated.size)
+                    else -> appContext.getString(R.string.stage_progress, completedCount + 1, updated.size)
                 }
                 dao.updateProject(project.copy(stageLabel = label, isCompleted = (updated.isNotEmpty() && completedCount == updated.size) || (project.totalTasks > 0 && project.completedTasks == project.totalTasks)))
                 true
@@ -592,7 +595,7 @@ class RoomDashboardPersistence private constructor(context: Context) :
         dao.observeGoals().map { goals -> goals.map { it.toModel() } }
 
     override suspend fun saveGoal(goal: DashboardGoal): Boolean {
-        val normalized = goal.normalizeForStorage() ?: return false
+        val normalized = goal.normalizeForStorage(appContext) ?: return false
         return writeMutex.withLock {
             database.withTransaction {
                 if (normalized.projectId != null && dao.getProject(normalized.projectId) == null) {
@@ -625,12 +628,26 @@ class RoomDashboardPersistence private constructor(context: Context) :
     }
 
     fun createBackupRepository(): BackupRepository =
-        com.example.lifedashboard.data.backup.RoomDashboardBackupRepository(database)
+        com.example.lifedashboard.data.backup.RoomDashboardBackupRepository(appContext, database)
 
     companion object {
         private const val SEED_MARKER = "starter_seed_v1"
         fun create(context: Context) = RoomDashboardPersistence(context)
     }
+}
+
+private const val LABEL_DELIMITER = "\u001F"
+
+private fun encodeLabels(labels: List<String>): String =
+    labels.map { it.trim() }.filter { it.isNotBlank() }.distinct().joinToString(LABEL_DELIMITER)
+
+private fun decodeLabels(raw: String): List<String> =
+    if (raw.isBlank()) emptyList()
+    else raw.split(LABEL_DELIMITER).map { it.trim() }.filter { it.isNotBlank() }.distinct()
+
+private fun formatNowTimestampLabel(): String {
+    val formatter = DateTimeFormatter.ofPattern("d MMM, HH:mm", Locale.forLanguageTag("ru"))
+    return LocalDateTime.now().format(formatter)
 }
 
 private fun DashboardHabit.normalizeForStorage(): DashboardHabit? {
@@ -680,14 +697,15 @@ private fun ProjectEntity.toModel(stages: List<ProjectStageEntity>) = DashboardP
     totalTasks = totalTasks,
     colorArgb = colorArgb,
     isCompleted = isCompleted,
-    stages = stages.sortedWith(compareBy<ProjectStageEntity> { it.sortOrder }.thenBy { it.id }).map { ProjectStage(it.id, it.title, it.isCompleted, it.isCurrent) }
+    stages = stages.sortedWith(compareBy<ProjectStageEntity> { it.sortOrder }.thenBy { it.id }).map { ProjectStage(it.id, it.title, it.isCompleted, it.isCurrent) },
+    isArchived = isArchived
 )
 
 private fun DashboardProject.toEntity() = ProjectEntity(
     id = id, name = name, description = description, deadlineLabel = deadlineLabel,
     deadlineDate = deadlineDate ?: DateInput.parseLegacyLabel(deadlineLabel), stageLabel = stageLabel,
     progress = progress, completedTasks = completedTasks, totalTasks = totalTasks,
-    colorArgb = colorArgb, isCompleted = isCompleted
+    colorArgb = colorArgb, isCompleted = isCompleted, isArchived = isArchived
 )
 
 private fun ProjectStage.toEntity(projectId: String, sortOrder: Int = 0) =
@@ -702,7 +720,8 @@ private fun NoteEntity.toModel() = DashboardNote(
     updatedLabel = updatedLabel,
     isPinned = isPinned,
     attachmentCount = attachmentCount,
-    projectId = projectId
+    projectId = projectId,
+    labels = decodeLabels(labels)
 )
 
 private fun DashboardNote.toEntity() = NoteEntity(
@@ -714,7 +733,8 @@ private fun DashboardNote.toEntity() = NoteEntity(
     updatedLabel = updatedLabel,
     isPinned = isPinned,
     attachmentCount = attachmentCount,
-    projectId = projectId
+    projectId = projectId,
+    labels = encodeLabels(labels)
 )
 
 private fun NoteAttachmentEntity.toModel() =
@@ -746,9 +766,9 @@ private fun DashboardHabit.toEntity() = HabitEntity(
     reminderDays = reminderDays.filter { it in 1..7 }.sorted().joinToString(",")
 )
 
-private fun DashboardGoal.normalizeForStorage(): DashboardGoal? {
+private fun DashboardGoal.normalizeForStorage(context: Context): DashboardGoal? {
     val cleanTitle = title.trim()
-    val cleanUnit = unit.trim().ifBlank { "раз" }
+    val cleanUnit = unit.trim().ifBlank { context.getString(R.string.default_unit) }
     if (id.isBlank() || cleanTitle.isBlank()) return null
     if (targetValue !in 1..1_000_000 || currentValue !in 0..targetValue) return null
     if (cleanUnit.length > 24) return null

@@ -35,6 +35,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
+import com.example.lifedashboard.R
 import com.example.lifedashboard.ui.theme.AppColors
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -59,42 +61,42 @@ fun QuickAddSheet(
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             Text(
-                text = "Что добавить?",
+                text = stringResource(R.string.quick_add_title),
                 style = MaterialTheme.typography.headlineMedium,
                 color = AppColors.Ink,
                 modifier = Modifier.padding(bottom = 8.dp)
             )
             QuickAddRow(
-                label = "Задача",
-                subtitle = "Что сделать сегодня",
+                label = stringResource(R.string.type_task),
+                subtitle = stringResource(R.string.type_task_desc),
                 icon = Icons.Outlined.CheckCircleOutline,
                 iconBackground = AppColors.Blue
             ) { onSelect(QuickAddType.TASK) }
 
             QuickAddRow(
-                label = "Заметка",
-                subtitle = "Текст, список, фото",
+                label = stringResource(R.string.type_note),
+                subtitle = stringResource(R.string.type_note_desc),
                 icon = Icons.Outlined.Description,
                 iconBackground = AppColors.Yellow
             ) { onSelect(QuickAddType.NOTE) }
 
             QuickAddRow(
-                label = "Проект",
-                subtitle = "Этапы и дедлайн",
+                label = stringResource(R.string.type_project),
+                subtitle = stringResource(R.string.type_project_desc),
                 icon = Icons.Outlined.FolderOpen,
                 iconBackground = AppColors.Lavender
             ) { onSelect(QuickAddType.PROJECT) }
 
             QuickAddRow(
-                label = "Привычка",
-                subtitle = "Повторять регулярно",
+                label = stringResource(R.string.type_habit),
+                subtitle = stringResource(R.string.type_habit_desc),
                 icon = Icons.Outlined.Repeat,
                 iconBackground = AppColors.Mint
             ) { onSelect(QuickAddType.HABIT) }
 
             QuickAddRow(
-                label = "Цель",
-                subtitle = "Число и срок",
+                label = stringResource(R.string.type_goal),
+                subtitle = stringResource(R.string.type_goal_desc),
                 icon = Icons.Outlined.Flag,
                 iconBackground = AppColors.Pink
             ) { onSelect(QuickAddType.GOAL) }

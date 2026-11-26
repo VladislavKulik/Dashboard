@@ -23,6 +23,8 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
+import com.example.lifedashboard.R
 import com.example.lifedashboard.ui.theme.AppColors
 
 @Composable
@@ -54,7 +56,7 @@ fun TaskRow(
             if (completed) {
                 Icon(
                     imageVector = Icons.Outlined.Check,
-                    contentDescription = "Выполнено",
+                    contentDescription = stringResource(R.string.task_completed),
                     tint = AppColors.White,
                     modifier = Modifier.size(15.dp)
                 )

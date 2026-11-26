@@ -19,7 +19,7 @@ import androidx.room.TypeConverters
         AppMetadataEntity::class,
         GoalEntity::class
     ],
-    version = 10,
+    version = 12,
     exportSchema = true
 )
 abstract class LifeDashboardDatabase : RoomDatabase() {

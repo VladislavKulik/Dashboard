@@ -1,3 +1,247 @@
 <resources>
     <string name="app_name">Life Dashboard</string>
+
+    <!-- DateInput -->
+    <string name="date_no_deadline">Без срока</string>
+    <string name="date_today">Сегодня</string>
+    <string name="date_tomorrow">Завтра</string>
+    <string name="date_day_after_tomorrow">Послезавтра</string>
+
+    <!-- Backup & Storage -->
+    <string name="error_backup_settings">Настройки приложения недоступны для резервной копии.</string>
+    <string name="error_backup_limit">Резервная копия превышает лимит 20 МБ.</string>
+    <string name="error_file_read">Не удалось прочитать выбранный файл.</string>
+    <string name="error_file_too_large">Файл слишком большой. Максимум — 25 МБ.</string>
+
+    <string name="file_size_bytes">%1$d Б</string>
+    <string name="file_size_kb">%1$d КБ</string>
+    <string name="file_size_mb">%.1f МБ</string>
+
+    <!-- RoomDashboardPersistence -->
+    <string name="default_task_title">Без названия</string>
+    <string name="stage_all_completed">Все этапы завершены</string>
+    <string name="stage_progress">Этап %1$d из %2$d</string>
+    <string name="default_unit">раз</string>
+
+    <!-- Enums and Models -->
+    <string name="repeat_none">Не повторять</string>
+    <string name="repeat_daily">Каждый день</string>
+    <string name="repeat_weekly">Каждую неделю</string>
+    <string name="repeat_monthly">Каждый месяц</string>
+
+    <string name="priority_high">Высокий</string>
+    <string name="priority_medium">Средний</string>
+    <string name="priority_low">Низкий</string>
+
+    <string name="project_app">Приложение</string>
+    <string name="project_blog">Блог</string>
+    <string name="project_personal">Личное</string>
+    <string name="project_ideas">Идеи</string>
+
+    <string name="reminder_not_set">Не настроено</string>
+
+    <!-- Settings -->
+    <string name="settings_stats_title">Сводка дня</string>
+    <string name="settings_stats_desc">Пилюли со статистикой задач, проектов и прогресса</string>
+    <string name="settings_quick_access_title">Быстрый доступ</string>
+    <string name="settings_quick_access_desc">Быстрые переходы к задачам, заметкам и привычкам</string>
+    <string name="settings_today_tasks_title">Задачи на сегодня</string>
+    <string name="settings_today_tasks_desc">Приоритетные задачи текущего дня</string>
+    <string name="settings_activity_title">Активность и события</string>
+    <string name="settings_activity_desc">График за 7 дней и последние действия</string>
+
+    <!-- Goal details & Editor -->
+    <string name="goal_achieved">Цель достигнута</string>
+    <string name="goal_due_to">до %1$s</string>
+    <string name="goal_overdue">%1$s · просрочено на %2$d дн.</string>
+    <string name="goal_today">%1$s · сегодня</string>
+    <string name="goal_days_left">%1$s · осталось %2$d дн.</string>
+
+    <string name="goal_new">Новая цель</string>
+    <string name="goal_edit">Изменить цель</string>
+    <string name="goal_edit_alt">Редактировать цель</string>
+    <string name="goal_name">Название</string>
+    <string name="goal_name_full">Название цели</string>
+    <string name="goal_name_placeholder">Например: Прочитать 12 книг</string>
+    <string name="goal_description">Описание</string>
+    <string name="goal_current">Сейчас</string>
+    <string name="goal_target">Цель</string>
+    <string name="goal_unit">Единица измерения</string>
+    <string name="goal_deadline">Срок достижения</string>
+    <string name="goal_linked_project">Связанный проект</string>
+
+    <string name="color_pink">Розовый</string>
+    <string name="color_blue">Голубой</string>
+    <string name="color_mint">Мятный</string>
+    <string name="color_yellow">Жёлтый</string>
+    <string name="color_lavender">Лавандовый</string>
+
+    <string name="action_close">Закрыть</string>
+
+    <!-- Goals Screen -->
+    <string name="filter_all">Все</string>
+    <string name="filter_active">В процессе</string>
+    <string name="filter_completed">Достигнуты</string>
+    <string name="goals_title">Цели</string>
+    <string name="goals_search_desc">Поиск целей</string>
+    <string name="goals_empty_title">Целей пока нет</string>
+    <string name="goals_empty_subtitle">Поставьте измеримую цель, чтобы шаг за шагом отслеживать свой прогресс</string>
+
+    <!-- MenuScreen -->
+    <string name="menu_no_goals">Нет целей</string>
+    <string name="menu_goals_progress">%1$d из %2$d достигнуто</string>
+    <string name="menu_no_habits">Нет привычек</string>
+    <string name="menu_habit_streak">%1$d прив. · серия %2$d дн.</string>
+    <string name="habit_plural_1">привычка</string>
+    <string name="habit_plural_2_4">привычки</string>
+    <string name="habit_plural_5_0">привычек</string>
+    <string name="menu_projects">Проекты</string>
+    <string name="menu_tasks">Задачи</string>
+    <string name="menu_tasks_today">%1$d на сегодня</string>
+
+    <!-- Notes -->
+    <string name="action_deselect">Отменить выбор</string>
+
+    <!-- AppBottomBar -->
+    <string name="tab_home">Главная</string>
+    <string name="tab_sections">Разделы</string>
+    <string name="tab_search">Поиск</string>
+    <string name="tab_settings">Настройки</string>
+    <string name="action_add">Добавить</string>
+
+    <!-- DateTimePickerSheet -->
+    <string name="date_picker_unlimited">Бессрочно</string>
+    <string name="date_picker_until_date">До даты</string>
+    <string name="date_picker_by_count">По числу</string>
+    <string name="date_picker_prev_month">Предыдущий месяц</string>
+    <string name="date_picker_next_month">Следующий месяц</string>
+    <string-array name="days_of_week_short">
+        <item>Пн</item>
+        <item>Вт</item>
+        <item>Ср</item>
+        <item>Чт</item>
+        <item>Пт</item>
+        <item>Сб</item>
+        <item>Вс</item>
+    </string-array>
+    <string name="date_in_a_week">Через неделю</string>
+    <string name="reminder_set">Напоминание · %1$s</string>
+    <string name="reminder_not_set_msg">Укажите время</string>
+    <string name="action_remove_reminder">Убрать напоминание</string>
+    <string name="time_label">Время (ЧЧ:ММ)</string>
+    <string name="repeat_label">Повтор</string>
+
+    <!-- EditorBottomBar -->
+    <string name="action_save">Сохранить</string>
+    <string name="action_reset">Сбросить</string>
+    <string name="card_color">Цвет карточки</string>
+    <string name="state_selected">Выбрано</string>
+    <string name="link_to_project">Привязать к проекту</string>
+    <string name="no_project">Без проекта</string>
+
+    <!-- LocalDatePickerField -->
+    <string name="action_select_date">Выбрать дату</string>
+    <string name="action_select">Выбрать</string>
+    <string name="action_cancel">Отмена</string>
+
+    <!-- QuickAddSheet -->
+    <string name="quick_add_title">Что добавить?</string>
+    <string name="type_task">Задача</string>
+    <string name="type_task_desc">Что сделать сегодня</string>
+    <string name="type_note">Заметка</string>
+    <string name="type_note_desc">Текст, список, фото</string>
+    <string name="type_project">Проект</string>
+    <string name="type_project_desc">Этапы и дедлайн</string>
+    <string name="type_habit">Привычка</string>
+    <string name="type_habit_desc">Повторять регулярно</string>
+    <string name="type_goal">Цель</string>
+    <string name="type_goal_desc">Число и срок</string>
+
+    <!-- ScreenTopBar -->
+    <string name="action_generic">Действие</string>
+    <string name="action_back">Назад</string>
+
+    <!-- TaskRow -->
+    <string name="task_completed">Выполнено</string>
+
+    <!-- Additional UI Strings -->
+    <string name="action_edit">Редактировать</string>
+    <string name="action_delete">Удалить</string>
+    <string name="action_delete_goal">Удалить цель</string>
+    <string name="action_decrease">Уменьшить</string>
+    <string name="action_increase">Увеличить</string>
+    <string name="action_actions">Действия</string>
+    <string name="delete_goal_title">Удалить цель?</string>
+    <string name="delete_goal_confirm">«%1$s» и её прогресс будут удалены.</string>
+    <string name="label_project">Проект</string>
+
+    <!-- Goal Editor Additional -->
+    <string name="color_label">Цвет</string>
+    <string name="goal_color_title">Цвет цели</string>
+    <string name="unit_short">Единица</string>
+    <string name="enter_goal_title_error">Введите название цели</string>
+    <string name="check_values_error">Проверь значения: 0 ≤ Сейчас ≤ Цель</string>
+    <string name="why_needed_placeholder">Зачем это нужно</string>
+    <string name="no_linked_project">Нет</string>
+    <string name="linked_project_more">Ещё (проект)</string>
+    <string name="deadline_prefix">Срок: %1$s</string>
+
+    <!-- Goals Screen Additional -->
+    <string name="goals_achieved_count">целей достигнуто</string>
+    <string name="all_goals_achieved">Все цели достигнуты</string>
+    <string name="no_completed_goals">Нет достигнутых целей</string>
+    <string name="empty_filter_goals_subtitle">По выбранному фильтру целей пока нет</string>
+    <string name="add_goal">Добавить цель</string>
+    <string name="status_achieved">достигнуто</string>
+
+    <!-- MenuScreen Additional -->
+    <string name="calendar_title">Календарь</string>
+    <string name="calendar_subtitle">Сроки и события</string>
+    <string name="analytics_title">Аналитика</string>
+    <string name="notes_title">Заметки</string>
+    <string name="habits_title">Привычки</string>
+    <string name="sections_title">Разделы</string>
+    <string name="analytics_default_desc">Статистика задач, привычек и целей</string>
+
+    <!-- Notes Additional -->
+    <string name="selected_count">Выбрано: %1$d</string>
+    <string name="pin_unpin">Закрепить или открепить</string>
+    <string name="delete_selected">Удалить выбранные</string>
+    <string name="selection_mode">Режим выбора</string>
+    <string name="search_notes">Поиск заметок</string>
+    <string name="notes_empty_filtered">По этому ярлыку пусто</string>
+    <string name="notes_empty_filtered_sub">В выбранной категории или ярлыке пока нет записей</string>
+    <string name="notes_empty_sub">Записывайте идеи, списки и прикрепляйте важные файлы</string>
+    <string name="pinned_section">Закреплённые</string>
+    <string name="other_section">Другие</string>
+    <string name="create_note">Создать заметку</string>
+    <string name="bulk_delete_title">Удалить выбранные заметки?</string>
+    <string name="bulk_delete_confirm">Будет удалено заметок: %1$d.</string>
+    <string name="attachments_count_short">%1$d влож.</string>
+
+    <!-- DateTimePickerSheet Additional -->
+    <string name="due_date_heading">Срок</string>
+    <string name="time_format_error">Формат ЧЧ:ММ, например 14:00</string>
+    <string name="action_done">Готово</string>
+
+    <!-- HomeScreen Additional -->
+    <string name="home_header_title">Твой день</string>
+    <string name="notifications">Уведомления</string>
+    <string name="home_menu">Меню главного экрана</string>
+    <string name="configure_blocks">Настроить блоки экрана</string>
+    <string name="all_blocks_hidden">Все блоки скрыты</string>
+    <string name="all_blocks_hidden_sub">Открой меню «⋮» наверху, чтобы вернуть нужные блоки.</string>
+    <string name="configure_home">Настроить главный экран</string>
+    <string name="no_today_tasks">На сегодня задач нет</string>
+    <string name="show_all_with_count">Показать все (%1$d)</string>
+    <string name="label_tasks">задач</string>
+    <string name="label_for_week">за неделю</string>
+    <string name="label_habits">привычки</string>
+    <string name="active_projects">Активные проекты</string>
+    <string name="no_active_projects">Пока нет активных проектов</string>
+    <string name="active_projects_count">Активных проектов: %1$d</string>
+    <string name="week_title">Неделя</string>
+    <string name="home_blocks_title">Блоки главного экрана</string>
+    <string name="action_up">Выше</string>
+    <string name="action_down">Ниже</string>
 </resources>

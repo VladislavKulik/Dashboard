@@ -45,6 +45,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringArrayResource
+import androidx.compose.ui.res.stringResource
+import com.example.lifedashboard.R
 import com.example.lifedashboard.ui.theme.AppColors
 import java.time.LocalDate
 import java.time.YearMonth
@@ -99,7 +102,7 @@ fun DateTimePickerSheet(
                 .padding(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            Text("Срок", style = MaterialTheme.typography.headlineMedium, color = AppColors.Ink)
+            Text(stringResource(R.string.due_date_heading), style = MaterialTheme.typography.headlineMedium, color = AppColors.Ink)
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -113,7 +116,7 @@ fun DateTimePickerSheet(
                         .clickable { monthOffset -= 1 },
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Outlined.ChevronLeft, contentDescription = "Предыдущий месяц", tint = AppColors.Ink, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Outlined.ChevronLeft, contentDescription = stringResource(R.string.date_picker_prev_month), tint = AppColors.Ink, modifier = Modifier.size(18.dp))
                 }
                 Text(
                     text = monthTitle,
@@ -130,12 +133,13 @@ fun DateTimePickerSheet(
                         .clickable { monthOffset += 1 },
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Outlined.ChevronRight, contentDescription = "Следующий месяц", tint = AppColors.Ink, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Outlined.ChevronRight, contentDescription = stringResource(R.string.date_picker_next_month), tint = AppColors.Ink, modifier = Modifier.size(18.dp))
                 }
             }
 
             Row(modifier = Modifier.fillMaxWidth()) {
-                listOf("Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс").forEach { day ->
+                val daysOfWeekShort = stringArrayResource(R.array.days_of_week_short)
+                daysOfWeekShort.forEach { day ->
                     Text(day, modifier = Modifier.weight(1f), color = AppColors.Muted, fontSize = 11.sp, textAlign = TextAlign.Center)
                 }
             }
@@ -183,22 +187,22 @@ fun DateTimePickerSheet(
                 modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                QuickDateChip("Сегодня", selectedDate == today) {
+                QuickDateChip(stringResource(R.string.date_today), selectedDate == today) {
                     selectedDate = today
                     monthOffset = 0
                 }
-                QuickDateChip("Завтра", selectedDate == today.plusDays(1)) {
+                QuickDateChip(stringResource(R.string.date_tomorrow), selectedDate == today.plusDays(1)) {
                     val d = today.plusDays(1)
                     selectedDate = d
                     monthOffset = (d.year - today.year) * 12 + (d.monthValue - today.monthValue)
                 }
-                QuickDateChip("Через неделю", selectedDate == today.plusWeeks(1)) {
+                QuickDateChip(stringResource(R.string.date_in_a_week), selectedDate == today.plusWeeks(1)) {
                     val d = today.plusWeeks(1)
                     selectedDate = d
                     monthOffset = (d.year - today.year) * 12 + (d.monthValue - today.monthValue)
                 }
                 if (allowClear && selectedDate != null) {
-                    QuickDateChip("Без срока", false) {
+                    QuickDateChip(stringResource(R.string.date_no_deadline), false) {
                         selectedDate = null
                     }
                 }
@@ -210,13 +214,13 @@ fun DateTimePickerSheet(
                     onValueChange = { value ->
                         time = value.filter { it.isDigit() || it == ':' }.take(5)
                     },
-                    label = { Text("Время") },
+                    label = { Text(stringResource(R.string.time_label)) },
                     trailingIcon = {
                         Icon(Icons.Outlined.AccessTime, contentDescription = null, tint = AppColors.Ink)
                     },
                     isError = !timeValid,
                     supportingText = if (!timeValid) {
-                        { Text("Формат ЧЧ:ММ, например 14:00", color = AppColors.Error) }
+                        { Text(stringResource(R.string.time_format_error), color = AppColors.Error) }
                     } else null,
                     singleLine = true,
                     shape = RoundedCornerShape(16.dp),
@@ -236,7 +240,7 @@ fun DateTimePickerSheet(
                 colors = ButtonDefaults.buttonColors(containerColor = AppColors.Ink, contentColor = AppColors.White),
                 contentPadding = PaddingValues(vertical = 15.dp)
             ) {
-                Text("Готово", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                Text(stringResource(R.string.action_done), fontWeight = FontWeight.Bold, fontSize = 15.sp)
             }
         }
     }

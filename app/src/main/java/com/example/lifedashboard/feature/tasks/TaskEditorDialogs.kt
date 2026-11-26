@@ -19,6 +19,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.lifedashboard.data.DateInput
@@ -105,7 +107,7 @@ fun AddTaskDialog(
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     TaskRecurrence.values().forEach { option ->
-                        FilterPill(option.label, recurrence == option, { recurrence = option })
+                        FilterPill(stringResource(id = option.labelResId), recurrence == option, { recurrence = option })
                     }
                 }
                 if (recurrence == TaskRecurrence.WEEKLY) {
@@ -132,7 +134,7 @@ fun AddTaskDialog(
                 ) {
                     TaskPriority.values().forEach { option ->
                         FilterPill(
-                            label = option.label,
+                            label = stringResource(id = option.labelResId),
                             selected = priority == option,
                             onClick = { priority = option }
                         )
@@ -191,6 +193,7 @@ fun EditTaskDialog(
     onSave: (DashboardTask) -> Unit,
     operationError: String? = null
 ) {
+    val context = LocalContext.current
     var title by remember(task.id) { mutableStateOf(task.title) }
     var dueDate by remember(task.id) { mutableStateOf(task.dueDate ?: DateInput.parseLegacyLabel(task.dueLabel)) }
     var dueDateTouched by remember(task.id) { mutableStateOf(false) }
@@ -256,7 +259,7 @@ fun EditTaskDialog(
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     TaskRecurrence.values().forEach { option ->
-                        FilterPill(option.label, recurrence == option, { recurrence = option })
+                        FilterPill(stringResource(id = option.labelResId), recurrence == option, { recurrence = option })
                     }
                 }
                 if (recurrence == TaskRecurrence.WEEKLY) {
@@ -286,7 +289,7 @@ fun EditTaskDialog(
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     TaskPriority.values().forEach { option ->
-                        FilterPill(option.label, priority == option, { priority = option })
+                        FilterPill(stringResource(id = option.labelResId), priority == option, { priority = option })
                     }
                 }
                 Text("Категория", color = AppColors.Muted, fontSize = 12.sp)
@@ -319,7 +322,7 @@ fun EditTaskDialog(
                     } else if (resolvedDate == null) {
                         "Без срока"
                     } else {
-                        listOf(DateInput.formatTaskLabel(resolvedDate), timePart)
+                        listOf(DateInput.formatTaskLabel(context, resolvedDate), timePart)
                             .filter(String::isNotBlank)
                             .joinToString(" · ")
                     }

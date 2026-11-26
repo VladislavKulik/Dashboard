@@ -1,11 +1,13 @@
 package com.example.lifedashboard.data.local
 
 import android.content.Context
+import com.example.lifedashboard.R
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.provider.OpenableColumns
+import android.util.LruCache
 import androidx.core.content.FileProvider
 import com.example.lifedashboard.data.model.NoteAttachment
 import java.io.File
@@ -16,6 +18,19 @@ import kotlinx.coroutines.withContext
 /** Stores note attachments in app-private storage so access never depends on temporary SAF URI grants. */
 object NoteAttachmentStorage {
     private const val MAX_ATTACHMENT_BYTES = 25L * 1024L * 1024L
+
+    private val thumbnailCache = object : LruCache<String, Bitmap>(24 * 1024) {
+        override fun sizeOf(key: String, value: Bitmap): Int =
+            (value.byteCount / 1024).coerceAtLeast(1)
+    }
+
+    private fun cacheKey(localPath: String, maxEdgePx: Int): String = "$localPath@$maxEdgePx"
+
+    /** Returns an already-decoded thumbnail synchronously on Frame 0 to prevent layout jumps. */
+    fun getCachedThumbnail(localPath: String, maxEdgePx: Int = 420): Bitmap? {
+        if (localPath.isBlank()) return null
+        return thumbnailCache.get(cacheKey(localPath, maxEdgePx))
+    }
 
     suspend fun importFromUri(context: Context, noteId: String, uri: Uri): NoteAttachment =
         withContext(Dispatchers.IO) {
@@ -33,7 +48,7 @@ object NoteAttachmentStorage {
             val target = File(dir, "${attachmentId}_$rawName")
 
             val input = resolver.openInputStream(uri)
-                ?: throw IllegalArgumentException("Не удалось прочитать выбранный файл.")
+                ?: throw IllegalArgumentException(context.getString(R.string.error_file_read))
             var totalBytes = 0L
             try {
                 input.use { stream ->
@@ -44,7 +59,7 @@ object NoteAttachmentStorage {
                             if (read < 0) break
                             totalBytes += read
                             require(totalBytes <= MAX_ATTACHMENT_BYTES) {
-                                "Файл слишком большой. Максимум — 25 МБ."
+                                context.getString(R.string.error_file_too_large)
                             }
                             out.write(buffer, 0, read)
                         }
@@ -82,8 +97,12 @@ object NoteAttachmentStorage {
         }
     }
 
-    suspend fun loadThumbnail(localPath: String, maxEdgePx: Int = 420): Bitmap? =
-        withContext(Dispatchers.IO) {
+    suspend fun loadThumbnail(localPath: String, maxEdgePx: Int = 420): Bitmap? {
+        if (localPath.isBlank()) return null
+        val key = cacheKey(localPath, maxEdgePx)
+        thumbnailCache.get(key)?.let { return it }
+
+        return withContext(Dispatchers.IO) {
             runCatching {
                 val file = File(localPath)
                 if (!file.exists()) return@runCatching null
@@ -95,9 +114,12 @@ object NoteAttachmentStorage {
                     sampleSize *= 2
                 }
                 val opts = BitmapFactory.Options().apply { inSampleSize = sampleSize }
-                BitmapFactory.decodeFile(localPath, opts)
+                BitmapFactory.decodeFile(localPath, opts)?.also { decoded ->
+                    thumbnailCache.put(key, decoded)
+                }
             }.getOrNull()
         }
+    }
 
     fun openAttachment(context: Context, attachment: NoteAttachment): Boolean {
         val file = File(attachment.localPath)
@@ -117,10 +139,10 @@ object NoteAttachmentStorage {
         }.getOrDefault(false)
     }
 
-    fun formatSize(bytes: Long): String = when {
-        bytes < 1024L -> "$bytes Б"
-        bytes < 1024L * 1024L -> "${(bytes / 1024L).coerceAtLeast(1)} КБ"
-        else -> String.format("%.1f МБ", bytes / (1024.0 * 1024.0))
+    fun formatSize(context: Context, bytes: Long): String = when {
+        bytes < 1024L -> context.getString(R.string.file_size_bytes, bytes)
+        bytes < 1024L * 1024L -> context.getString(R.string.file_size_kb, (bytes / 1024L).coerceAtLeast(1))
+        else -> context.getString(R.string.file_size_mb, bytes / (1024.0 * 1024.0))
     }
 
     private fun queryDisplayName(context: Context, uri: Uri): String? = runCatching {

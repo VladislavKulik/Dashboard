@@ -42,10 +42,11 @@ object GlobalSearchMatcher {
         query: String,
         state: DashboardUiState,
         scope: SearchScope = SearchScope.ALL,
-        quickFilter: SearchQuickFilter? = null
+        quickFilter: SearchQuickFilter? = null,
+        resolveString: (Int) -> String = { "" }
     ): List<GlobalSearchResult> {
         if (quickFilter != null && query.isBlank()) {
-            return quickFilterResults(quickFilter, state, scope)
+            return quickFilterResults(quickFilter, state, scope, resolveString)
         }
         val normalizedQuery = query.trim()
         if (normalizedQuery.isBlank()) return emptyList()
@@ -60,12 +61,12 @@ object GlobalSearchMatcher {
         }
         if (scope == SearchScope.ALL || scope == SearchScope.TASKS) {
             state.tasks.forEach { task ->
-                matchTask(task, projectNames[task.projectId], normalizedQuery)?.let(results::add)
+                matchTask(task, projectNames[task.projectId], normalizedQuery, resolveString)?.let(results::add)
             }
         }
         if (scope == SearchScope.ALL || scope == SearchScope.NOTES) {
             state.notes.forEach { note ->
-                matchNote(note, normalizedQuery)?.let(results::add)
+                matchNote(note, normalizedQuery, resolveString)?.let(results::add)
             }
         }
         if (scope == SearchScope.ALL || scope == SearchScope.GOALS) {
@@ -89,10 +90,11 @@ object GlobalSearchMatcher {
     fun countByScope(
         query: String,
         state: DashboardUiState,
-        quickFilter: SearchQuickFilter? = null
+        quickFilter: SearchQuickFilter? = null,
+        resolveString: (Int) -> String = { "" }
     ): Map<SearchScope, Int> {
-        val all = search(query, state, SearchScope.ALL, quickFilter)
-        return SearchScope.values().associateWith { scope ->
+        val all = search(query, state, SearchScope.ALL, quickFilter, resolveString)
+        return SearchScope.entries.associateWith { scope ->
             if (scope == SearchScope.ALL) all.size else all.count { it.scope == scope }
         }
     }
@@ -100,7 +102,8 @@ object GlobalSearchMatcher {
     private fun quickFilterResults(
         filter: SearchQuickFilter,
         state: DashboardUiState,
-        scope: SearchScope
+        scope: SearchScope,
+        resolveString: (Int) -> String
     ): List<GlobalSearchResult> {
         val projectNames = state.projects.associate { it.id to it.name }
         val today = LocalDate.now()
@@ -114,7 +117,7 @@ object GlobalSearchMatcher {
                         entityId = task.id,
                         title = task.title,
                         subtitle = listOfNotNull(task.dueLabel, projectNames[task.projectId]).joinToString(" · "),
-                        badge = task.priority.label,
+                        badge = resolveString(task.priority.labelResId),
                         projectId = task.projectId
                     )
                 }
@@ -126,8 +129,8 @@ object GlobalSearchMatcher {
                         scope = SearchScope.NOTES,
                         entityId = note.id,
                         title = note.title,
-                        subtitle = note.body.replace('\n', ' ').trim().ifBlank { note.category.label },
-                        badge = note.category.label
+                        subtitle = note.body.replace('\n', ' ').trim().ifBlank { note.labels.firstOrNull() ?: resolveString(note.category.labelResId) },
+                        badge = note.labels.firstOrNull() ?: resolveString(note.category.labelResId)
                     )
                 }
             SearchQuickFilter.NO_PROJECT -> state.tasks
@@ -139,7 +142,7 @@ object GlobalSearchMatcher {
                         entityId = task.id,
                         title = task.title,
                         subtitle = task.dueLabel,
-                        badge = task.priority.label
+                        badge = resolveString(task.priority.labelResId)
                     )
                 }
             SearchQuickFilter.HABIT_STREAKS -> state.habits
@@ -162,14 +165,15 @@ object GlobalSearchMatcher {
     private fun matchTask(
         task: DashboardTask,
         projectName: String?,
-        query: String
+        query: String,
+        resolveString: (Int) -> String
     ): GlobalSearchResult? {
         val relevance = score(query, task.title, listOfNotNull(projectName, task.dueLabel, task.trailingLabel))
             ?: return null
         val subtitle = listOfNotNull(
             task.dueLabel.takeIf { it.isNotBlank() },
             projectName,
-            task.priority.label
+            resolveString(task.priority.labelResId)
         ).joinToString(" · ")
         return GlobalSearchResult(
             key = "task:${task.id}",
@@ -192,7 +196,7 @@ object GlobalSearchMatcher {
         val subtitle = if (matchedStage != null && !project.name.contains(query, ignoreCase = true)) {
             "Этап: ${matchedStage.title}"
         } else {
-            "${project.stageLabel} · ${project.completedTasks}/${project.totalTasks} задач"
+            "${project.completedTasks}/${project.totalTasks} задач"
         }
         return GlobalSearchResult(
             key = "project:${project.id}",
@@ -200,23 +204,28 @@ object GlobalSearchMatcher {
             entityId = project.id,
             title = project.name,
             subtitle = subtitle,
-            badge = if (project.isCompleted) "Завершён" else "${(project.progress * 100).toInt()}%",
+            badge = when {
+                project.isArchived -> "Архив"
+                project.isCompleted -> "Завершён"
+                else -> "${(project.progress * 100).toInt()}%"
+            },
             isCompleted = project.isCompleted,
             relevance = relevance
         )
     }
 
-    private fun matchNote(note: DashboardNote, query: String): GlobalSearchResult? {
-        val relevance = score(query, note.title, listOf(note.body, note.category.label))
+    private fun matchNote(note: DashboardNote, query: String, resolveString: (Int) -> String): GlobalSearchResult? {
+        val categoryLabel = resolveString(note.category.labelResId)
+        val relevance = score(query, note.title, listOf(note.body, categoryLabel) + note.labels)
             ?: return null
-        val snippet = note.body.replace('\n', ' ').trim().ifBlank { note.category.label }
+        val snippet = note.body.replace('\n', ' ').trim().ifBlank { note.labels.joinToString(", ").ifBlank { categoryLabel } }
         return GlobalSearchResult(
             key = "note:${note.id}",
             scope = SearchScope.NOTES,
             entityId = note.id,
             title = note.title,
             subtitle = snippet,
-            badge = note.category.label,
+            badge = note.labels.firstOrNull() ?: categoryLabel,
             relevance = relevance
         )
     }

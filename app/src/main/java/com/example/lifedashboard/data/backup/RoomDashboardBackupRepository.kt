@@ -1,5 +1,7 @@
 package com.example.lifedashboard.data.backup
 
+import android.content.Context
+import com.example.lifedashboard.R
 import androidx.room.withTransaction
 import com.example.lifedashboard.data.DateInput
 import com.example.lifedashboard.data.local.ActivityEventEntity
@@ -27,6 +29,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 class RoomDashboardBackupRepository(
+    private val context: Context,
     private val database: LifeDashboardDatabase
 ) : BackupRepository {
     private val dao = database.dashboardDao()
@@ -56,12 +59,12 @@ class RoomDashboardBackupRepository(
                     .put("createdAtEpochMillis", System.currentTimeMillis())
                     .put("data", data)
                 if (includeSettings) {
-                    requireNotNull(settings) { "Настройки приложения недоступны для резервной копии." }
+                    requireNotNull(settings) { context.getString(R.string.error_backup_settings) }
                     root.put("settings", settings.toJson())
                 }
                 root.toString(2).also { json ->
                     require(json.toByteArray(Charsets.UTF_8).size <= MAX_BACKUP_BYTES) {
-                        "Резервная копия превышает лимит 20 МБ."
+                        context.getString(R.string.error_backup_limit)
                     }
                 }
             }
@@ -216,7 +219,8 @@ class RoomDashboardBackupRepository(
                 completedTasks = item.requiredInt("completedTasks"),
                 totalTasks = item.requiredInt("totalTasks"),
                 colorArgb = item.requiredInt("colorArgb"),
-                isCompleted = item.requiredBoolean("isCompleted")
+                isCompleted = item.requiredBoolean("isCompleted"),
+                isArchived = item.optBoolean("isArchived", false)
             ).also {
                 require(it.id.isNotBlank() && it.name.isNotBlank())
                 require(it.progress.isFinite() && it.progress in 0f..1f)
@@ -237,6 +241,8 @@ class RoomDashboardBackupRepository(
         }.uniqueBy("id") { it.id }
 
         val notes = data.requiredArray("notes").objects { item ->
+            val rawProjectId = item.optionalString("projectId")
+            require(rawProjectId == null || rawProjectId in projectIds) { "Заметка ссылается на несуществующий проект." }
             NoteEntity(
                 id = item.requiredString("id"),
                 title = item.requiredString("title"),
@@ -245,7 +251,9 @@ class RoomDashboardBackupRepository(
                 color = item.requiredString("color"),
                 updatedLabel = item.requiredString("updatedLabel"),
                 isPinned = item.requiredBoolean("isPinned"),
-                attachmentCount = item.requiredInt("attachmentCount")
+                attachmentCount = item.requiredInt("attachmentCount"),
+                projectId = rawProjectId,
+                labels = item.optString("labels", "")
             ).also {
                 require(it.id.isNotBlank() && it.attachmentCount >= 0)
                 com.example.lifedashboard.data.model.NoteCategory.valueOf(it.category)
@@ -364,6 +372,7 @@ class RoomDashboardBackupRepository(
         .put("stageLabel", stageLabel).put("progress", progress.toDouble())
         .put("completedTasks", completedTasks).put("totalTasks", totalTasks).put("colorArgb", colorArgb)
         .put("isCompleted", isCompleted)
+        .put("isArchived", isArchived)
 
     private fun ProjectStageEntity.toJson() = JSONObject()
         .put("id", id).put("projectId", projectId).put("title", title)
@@ -373,6 +382,8 @@ class RoomDashboardBackupRepository(
         .put("id", id).put("title", title).put("body", body).put("category", category)
         .put("color", color).put("updatedLabel", updatedLabel).put("isPinned", isPinned)
         .put("attachmentCount", attachmentCount)
+        .put("projectId", projectId ?: JSONObject.NULL)
+        .put("labels", labels)
 
     private fun NoteAttachmentEntity.toJson() = JSONObject()
         .put("id", id).put("noteId", noteId).put("displayName", displayName)

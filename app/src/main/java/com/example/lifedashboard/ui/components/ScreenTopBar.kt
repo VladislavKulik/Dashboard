@@ -13,13 +13,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import com.example.lifedashboard.R
 import com.example.lifedashboard.ui.theme.AppColors
 
 @Composable
 fun ScreenTopBar(
     title: String,
     actionIcon: ImageVector? = null,
-    actionDescription: String = "Действие",
+    actionDescription: String = stringResource(R.string.action_generic),
     onActionClick: (() -> Unit)? = null,
     onBackClick: (() -> Unit)? = null
 ) {
@@ -30,7 +32,7 @@ fun ScreenTopBar(
         if (onBackClick != null) {
             CircleIconButton(
                 icon = Icons.Outlined.ArrowBack,
-                contentDescription = "Назад",
+                contentDescription = stringResource(R.string.action_back),
                 onClick = onBackClick
             )
             Spacer(Modifier.width(12.dp))

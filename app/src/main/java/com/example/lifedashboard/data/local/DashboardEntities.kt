@@ -60,7 +60,8 @@ data class ProjectEntity(
     val completedTasks: Int,
     val totalTasks: Int,
     val colorArgb: Int,
-    val isCompleted: Boolean
+    val isCompleted: Boolean,
+    @ColumnInfo(defaultValue = "0") val isArchived: Boolean = false
 )
 
 @Entity(tableName = "project_stages")
@@ -83,7 +84,8 @@ data class NoteEntity(
     val updatedLabel: String,
     val isPinned: Boolean,
     val attachmentCount: Int,
-    val projectId: String? = null
+    val projectId: String? = null,
+    @ColumnInfo(defaultValue = "''") val labels: String = ""
 )
 
 @Entity(tableName = "note_attachments")

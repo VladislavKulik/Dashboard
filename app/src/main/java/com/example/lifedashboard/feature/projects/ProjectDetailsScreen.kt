@@ -10,15 +10,19 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.AttachFile
+import androidx.compose.material.icons.outlined.CheckCircleOutline
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Flag
@@ -26,13 +30,17 @@ import androidx.compose.material.icons.outlined.MoreHoriz
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -42,6 +50,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -54,17 +65,20 @@ import com.example.lifedashboard.data.model.DashboardTask
 import com.example.lifedashboard.data.model.TaskPriority
 import com.example.lifedashboard.data.model.TaskRecurrence
 import com.example.lifedashboard.feature.tasks.AddTaskDialog
+import com.example.lifedashboard.ui.components.AppFab
 import com.example.lifedashboard.ui.components.CircleIconButton
 import com.example.lifedashboard.ui.components.CircularProgressRing
 import com.example.lifedashboard.ui.components.PastelCard
 import com.example.lifedashboard.ui.components.ProgressTrack
 import com.example.lifedashboard.ui.components.TaskRow
 import com.example.lifedashboard.ui.theme.AppColors
-import java.time.Instant
 import java.time.LocalDate
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
-import java.util.Locale
+
+private enum class AttachItemTab(val label: String) {
+    TASKS("Задачи"),
+    GOALS("Цели"),
+    NOTES("Заметки")
+}
 
 @Composable
 fun ProjectDetailsScreen(
@@ -87,28 +101,36 @@ fun ProjectDetailsScreen(
     onAddGoal: () -> Unit = {},
     onAddNote: () -> Unit = {},
     onEditProject: (() -> Unit)? = null,
-    onOpenAddTask: (() -> Unit)? = null
+    onOpenAddTask: (() -> Unit)? = null,
+    allTasks: List<DashboardTask> = emptyList(),
+    onOpenHistory: () -> Unit = {},
+    onAttachExistingItems: (Set<String>, Set<String>, Set<String>) -> Unit = { _, _, _ -> },
+    onToggleArchive: () -> Unit = {}
 ) {
     var showOverflowMenu by remember { mutableStateOf(false) }
     var showEditor by remember(project.id) { mutableStateOf(false) }
     var showDeleteConfirmation by remember(project.id) { mutableStateOf(false) }
     var showAddTaskDialog by remember(project.id) { mutableStateOf(false) }
+    var showCreateSheet by remember { mutableStateOf(false) }
+    var showAttachSheet by remember { mutableStateOf(false) }
 
     val projectGoals = remember(project.id, goals) { goals.filter { it.projectId == project.id } }
     val projectNotes = remember(project.id, notes) { notes.filter { it.projectId == project.id } }
-    val projectHistory = remember(project.id, tasks, activityEvents) {
-        val taskMap = tasks.associateBy { it.id }
-        activityEvents
-            .filter { it.itemId in taskMap }
-            .sortedByDescending { it.occurredAtEpochMillis }
-            .take(5)
-            .map { event -> event to taskMap[event.itemId]?.title.orEmpty() }
+
+    val unattachedTasks = remember(project.id, allTasks) {
+        allTasks.filter { it.projectId != project.id }
+    }
+    val unattachedGoals = remember(project.id, goals) {
+        goals.filter { it.projectId != project.id }
+    }
+    val unattachedNotes = remember(project.id, notes) {
+        notes.filter { it.projectId != project.id }
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(start = 20.dp, top = 20.dp, end = 20.dp, bottom = 92.dp),
+            contentPadding = PaddingValues(start = 20.dp, top = 20.dp, end = 20.dp, bottom = 156.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             item {
@@ -146,6 +168,20 @@ fun ProjectDetailsScreen(
                                 }
                             )
                             DropdownMenuItem(
+                                text = { Text("История") },
+                                onClick = {
+                                    showOverflowMenu = false
+                                    onOpenHistory()
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text(if (project.isArchived) "Вернуть из архива" else "В архив") },
+                                onClick = {
+                                    showOverflowMenu = false
+                                    onToggleArchive()
+                                }
+                            )
+                            DropdownMenuItem(
                                 text = { Text("Все задачи проекта") },
                                 onClick = {
                                     showOverflowMenu = false
@@ -174,18 +210,35 @@ fun ProjectDetailsScreen(
                     contentPadding = PaddingValues(18.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .clip(CircleShape)
-                            .background(AppColors.Ink)
-                            .padding(horizontal = 12.dp, vertical = 5.dp)
-                    ) {
-                        Text(
-                            text = "Дедлайн ${project.deadlineLabel}",
-                            color = AppColors.White,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold
-                        )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Box(
+                            modifier = Modifier
+                                .clip(CircleShape)
+                                .background(AppColors.Ink)
+                                .padding(horizontal = 12.dp, vertical = 5.dp)
+                        ) {
+                            Text(
+                                text = "Дедлайн ${project.deadlineLabel}",
+                                color = AppColors.White,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        if (project.isArchived) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(CircleShape)
+                                    .background(AppColors.White.copy(alpha = 0.85f))
+                                    .padding(horizontal = 12.dp, vertical = 5.dp)
+                            ) {
+                                Text(
+                                    text = "В архиве",
+                                    color = AppColors.Ink,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
                     }
                     Text(
                         text = project.name,
@@ -220,12 +273,11 @@ fun ProjectDetailsScreen(
                 }
             }
 
-            // Задачи проекта
             item {
-                SectionActionHeader(
-                    title = "Задачи (${tasks.size})",
-                    actionLabel = if (tasks.size > 5) "Все" else null,
-                    onAction = onOpenAllTasks
+                Text(
+                    text = "Задачи (${tasks.size})",
+                    color = AppColors.Muted,
+                    style = MaterialTheme.typography.bodySmall
                 )
             }
             item {
@@ -258,12 +310,11 @@ fun ProjectDetailsScreen(
                 }
             }
 
-            // Цели проекта
             item {
-                SectionActionHeader(
-                    title = "Цели (${projectGoals.size})",
-                    actionLabel = "+ Цель",
-                    onAction = onAddGoal
+                Text(
+                    text = "Цели (${projectGoals.size})",
+                    color = AppColors.Muted,
+                    style = MaterialTheme.typography.bodySmall
                 )
             }
             item {
@@ -312,12 +363,11 @@ fun ProjectDetailsScreen(
                 }
             }
 
-            // Заметки проекта
             item {
-                SectionActionHeader(
-                    title = "Заметки (${projectNotes.size})",
-                    actionLabel = "+ Заметка",
-                    onAction = onAddNote
+                Text(
+                    text = "Заметки (${projectNotes.size})",
+                    color = AppColors.Muted,
+                    style = MaterialTheme.typography.bodySmall
                 )
             }
             item {
@@ -362,59 +412,63 @@ fun ProjectDetailsScreen(
                     }
                 }
             }
-
-            item {
-                Text("История", color = AppColors.Muted, style = MaterialTheme.typography.bodySmall)
-            }
-            item {
-                PastelCard(
-                    color = AppColors.White,
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    if (projectHistory.isEmpty()) {
-                        Text(
-                            text = if (project.completedTasks > 0) "Завершено задач: ${project.completedTasks}" else "Активность по проекту пока не зафиксирована.",
-                            color = AppColors.Muted,
-                            fontSize = 13.sp
-                        )
-                    } else {
-                        val zone = ZoneId.systemDefault()
-                        val fmt = DateTimeFormatter.ofPattern("d MMM", Locale.forLanguageTag("ru"))
-                        val today = LocalDate.now()
-                        projectHistory.forEach { (event, title) ->
-                            val date = Instant.ofEpochMilli(event.occurredAtEpochMillis).atZone(zone).toLocalDate()
-                            val dayLabel = when (date) {
-                                today -> "Сегодня"
-                                today.minusDays(1) -> "Вчера"
-                                else -> date.format(fmt)
-                            }
-                            val actionLabel = when {
-                                event.type == "TASK_SKIPPED" -> "пропущена"
-                                event.completed -> "выполнена"
-                                else -> "возвращена"
-                            }
-                            Text(text = "$dayLabel · $actionLabel «$title»", color = AppColors.Ink, fontSize = 13.sp)
-                        }
-                    }
-                }
-            }
         }
 
-        Button(
-            onClick = { if (onOpenAddTask != null) onOpenAddTask() else showAddTaskDialog = true },
+        Column(
             modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 16.dp),
-            shape = RoundedCornerShape(28.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = AppColors.Ink, contentColor = AppColors.White),
-            contentPadding = PaddingValues(vertical = 15.dp)
+                .align(Alignment.BottomEnd)
+                .padding(20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Icon(Icons.Outlined.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-            Spacer(Modifier.width(6.dp))
-            Text("Добавить задачу", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+            AppFab(
+                icon = Icons.Outlined.AttachFile,
+                contentDescription = "Прикрепить существующие",
+                onClick = { showAttachSheet = true },
+                containerColor = AppColors.White,
+                contentColor = AppColors.Ink,
+                size = 52.dp,
+                iconSize = 22.dp
+            )
+
+            AppFab(
+                icon = Icons.Outlined.Add,
+                contentDescription = "Создать в проекте",
+                onClick = { showCreateSheet = true }
+            )
         }
+    }
+
+    if (showCreateSheet) {
+        ProjectCreateNewSheet(
+            projectName = project.name,
+            onDismiss = { showCreateSheet = false },
+            onCreateTask = {
+                showCreateSheet = false
+                if (onOpenAddTask != null) onOpenAddTask() else showAddTaskDialog = true
+            },
+            onCreateGoal = {
+                showCreateSheet = false
+                onAddGoal()
+            },
+            onCreateNote = {
+                showCreateSheet = false
+                onAddNote()
+            }
+        )
+    }
+
+    if (showAttachSheet) {
+        ProjectAttachExistingSheet(
+            unattachedTasks = unattachedTasks,
+            unattachedGoals = unattachedGoals,
+            unattachedNotes = unattachedNotes,
+            onDismiss = { showAttachSheet = false },
+            onConfirmAttach = { taskIds, goalIds, noteIds ->
+                onAttachExistingItems(taskIds, goalIds, noteIds)
+                showAttachSheet = false
+            }
+        )
     }
 
     if (showAddTaskDialog) {
@@ -462,33 +516,308 @@ fun ProjectDetailsScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SectionActionHeader(
-    title: String,
-    actionLabel: String?,
-    onAction: () -> Unit
+private fun ProjectCreateNewSheet(
+    projectName: String,
+    onDismiss: () -> Unit,
+    onCreateTask: () -> Unit,
+    onCreateGoal: () -> Unit,
+    onCreateNote: () -> Unit
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = AppColors.White,
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
     ) {
-        Text(
-            text = title,
-            color = AppColors.Muted,
-            style = MaterialTheme.typography.bodySmall,
-            modifier = Modifier.weight(1f)
-        )
-        if (actionLabel != null) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 28.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
             Text(
-                text = actionLabel,
-                color = AppColors.Ink,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier
-                    .clip(CircleShape)
-                    .clickable(onClick = onAction)
-                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                text = "Создать в проекте",
+                style = MaterialTheme.typography.headlineMedium,
+                color = AppColors.Ink
+            )
+            Text(
+                text = projectName,
+                color = AppColors.Muted,
+                fontSize = 13.sp,
+                modifier = Modifier.padding(bottom = 4.dp)
+            )
+            ProjectSheetActionRow(
+                label = "Новая задача",
+                subtitle = "Сразу привязана к проекту",
+                icon = Icons.Outlined.CheckCircleOutline,
+                iconBg = AppColors.Blue,
+                onClick = onCreateTask
+            )
+            ProjectSheetActionRow(
+                label = "Новая цель",
+                subtitle = "Измеримый результат проекта",
+                icon = Icons.Outlined.Flag,
+                iconBg = AppColors.Pink,
+                onClick = onCreateGoal
+            )
+            ProjectSheetActionRow(
+                label = "Новая заметка",
+                subtitle = "Конспект, идеи или файлы проекта",
+                icon = Icons.Outlined.Description,
+                iconBg = AppColors.Yellow,
+                onClick = onCreateNote
             )
         }
+    }
+}
+
+@Composable
+private fun ProjectSheetActionRow(
+    label: String,
+    subtitle: String,
+    icon: ImageVector,
+    iconBg: Color,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(18.dp))
+            .background(AppColors.Background)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(42.dp)
+                .clip(CircleShape)
+                .background(iconBg),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(icon, contentDescription = null, tint = AppColors.Ink, modifier = Modifier.size(20.dp))
+        }
+        Spacer(Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(label, color = AppColors.Ink, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+            Text(subtitle, color = AppColors.Muted, fontSize = 12.sp)
+        }
+        Icon(Icons.Outlined.ChevronRight, contentDescription = null, tint = AppColors.Muted)
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ProjectAttachExistingSheet(
+    unattachedTasks: List<DashboardTask>,
+    unattachedGoals: List<DashboardGoal>,
+    unattachedNotes: List<DashboardNote>,
+    onDismiss: () -> Unit,
+    onConfirmAttach: (Set<String>, Set<String>, Set<String>) -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var selectedTab by remember { mutableStateOf(AttachItemTab.TASKS) }
+    var selectedTaskIds by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var selectedGoalIds by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var selectedNoteIds by remember { mutableStateOf<Set<String>>(emptySet()) }
+
+    val totalSelected = selectedTaskIds.size + selectedGoalIds.size + selectedNoteIds.size
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = AppColors.Background,
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = "Прикрепить к проекту",
+                style = MaterialTheme.typography.headlineMedium,
+                color = AppColors.Ink
+            )
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(CircleShape)
+                    .background(AppColors.White)
+                    .padding(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                AttachItemTab.values().forEach { tab ->
+                    val count = when (tab) {
+                        AttachItemTab.TASKS -> selectedTaskIds.size
+                        AttachItemTab.GOALS -> selectedGoalIds.size
+                        AttachItemTab.NOTES -> selectedNoteIds.size
+                    }
+                    val label = if (count > 0) "${tab.label} ($count)" else tab.label
+                    val isSelected = selectedTab == tab
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(CircleShape)
+                            .background(if (isSelected) AppColors.Ink else Color.Transparent)
+                            .clickable(role = Role.Tab) { selectedTab = tab }
+                            .padding(vertical = 10.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = label,
+                            color = if (isSelected) AppColors.White else AppColors.Ink,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 160.dp, max = 340.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                when (selectedTab) {
+                    AttachItemTab.TASKS -> {
+                        if (unattachedTasks.isEmpty()) {
+                            item {
+                                EmptyAttachTabMessage("Все существующие задачи уже прикреплены к этому проекту.")
+                            }
+                        } else {
+                            items(unattachedTasks, key = { "attach-task-${it.id}" }) { task ->
+                                val checked = task.id in selectedTaskIds
+                                AttachSelectableRow(
+                                    title = task.title,
+                                    subtitle = task.dueLabel,
+                                    checked = checked,
+                                    onToggle = {
+                                        selectedTaskIds = if (checked) selectedTaskIds - task.id else selectedTaskIds + task.id
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    AttachItemTab.GOALS -> {
+                        if (unattachedGoals.isEmpty()) {
+                            item {
+                                EmptyAttachTabMessage("Нет доступных целей для прикрепления.")
+                            }
+                        } else {
+                            items(unattachedGoals, key = { "attach-goal-${it.id}" }) { goal ->
+                                val checked = goal.id in selectedGoalIds
+                                AttachSelectableRow(
+                                    title = goal.title,
+                                    subtitle = "${goal.currentValue} из ${goal.targetValue} ${goal.unit}",
+                                    checked = checked,
+                                    onToggle = {
+                                        selectedGoalIds = if (checked) selectedGoalIds - goal.id else selectedGoalIds + goal.id
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    AttachItemTab.NOTES -> {
+                        if (unattachedNotes.isEmpty()) {
+                            item {
+                                EmptyAttachTabMessage("Нет доступных заметок для прикрепления.")
+                            }
+                        } else {
+                            items(unattachedNotes, key = { "attach-note-${it.id}" }) { note ->
+                                val checked = note.id in selectedNoteIds
+                                AttachSelectableRow(
+                                    title = note.title,
+                                    subtitle = stringResource(id = note.category.labelResId),
+                                    checked = checked,
+                                    onToggle = {
+                                        selectedNoteIds = if (checked) selectedNoteIds - note.id else selectedNoteIds + note.id
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            Button(
+                onClick = { onConfirmAttach(selectedTaskIds, selectedGoalIds, selectedNoteIds) },
+                enabled = totalSelected > 0,
+                modifier = Modifier.fillMaxWidth(),
+                shape = CircleShape,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = AppColors.Ink,
+                    contentColor = AppColors.White
+                ),
+                contentPadding = PaddingValues(vertical = 14.dp)
+            ) {
+                Text(
+                    text = if (totalSelected > 0) "Прикрепить ($totalSelected)" else "Выбери элементы",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AttachSelectableRow(
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    onToggle: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(AppColors.White)
+            .clickable(onClick = onToggle)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Checkbox(checked = checked, onCheckedChange = { onToggle() })
+        Spacer(Modifier.width(8.dp))
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                text = title,
+                color = AppColors.Ink,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 14.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            if (subtitle.isNotBlank()) {
+                Text(
+                    text = subtitle,
+                    color = AppColors.Muted,
+                    fontSize = 12.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun EmptyAttachTabMessage(message: String) {
+    PastelCard(
+        color = AppColors.White,
+        modifier = Modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(18.dp)
+    ) {
+        Text(text = message, color = AppColors.Muted, fontSize = 13.sp)
     }
 }

@@ -1,5 +1,7 @@
 package com.example.lifedashboard.data
 
+import android.content.Context
+import com.example.lifedashboard.R
 import com.example.lifedashboard.data.model.TaskDayCategory
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -38,7 +40,6 @@ object DateInput {
         Regex("через\\s+(\\d+)\\s+д(?:ень|ня|ней)").matchEntire(clean)?.let {
             return today.plusDays(it.groupValues[1].toLong())
         }
-        // Remove optional time suffixes used by older task labels (e.g. "Сегодня · 16:00").
         val withoutTime = clean.substringBefore('·').trim()
         if (withoutTime != clean) parseLegacyLabel(withoutTime, today)?.let { return it }
         val numeric = Regex("(\\d{1,2})[.\\-/](\\d{1,2})").matchEntire(clean)
@@ -57,15 +58,16 @@ object DateInput {
 
     fun formatForInput(date: LocalDate?): String = date?.format(displayFormatter).orEmpty()
 
-    fun formatShort(date: LocalDate?): String = date?.format(shortFormatter)?.replaceFirstChar { it.uppercase(Locale.forLanguageTag("ru")) }.orEmpty()
+    fun formatShort(date: LocalDate?): String =
+        date?.format(shortFormatter)?.replaceFirstChar { it.uppercase(Locale.forLanguageTag("ru")) }.orEmpty()
 
-    fun formatTaskLabel(date: LocalDate?): String {
-        if (date == null) return "Без срока"
+    fun formatTaskLabel(context: Context, date: LocalDate?): String {
+        if (date == null) return context.getString(R.string.date_no_deadline)
         val today = LocalDate.now()
         return when (date) {
-            today -> "Сегодня"
-            today.plusDays(1) -> "Завтра"
-            today.plusDays(2) -> "Послезавтра"
+            today -> context.getString(R.string.date_today)
+            today.plusDays(1) -> context.getString(R.string.date_tomorrow)
+            today.plusDays(2) -> context.getString(R.string.date_day_after_tomorrow)
             else -> date.format(shortFormatter)
         }
     }
@@ -92,7 +94,7 @@ object DateInput {
         "апр", "апрель", "апреля" -> 4
         "май", "мая" -> 5
         "июн", "июнь", "июня" -> 6
-        "июл", "июль", "июня" -> 7
+        "июл", "июль", "июля" -> 7
         "авг", "август", "августа" -> 8
         "сен", "сент", "сентябрь", "сентября" -> 9
         "окт", "октябрь", "октября" -> 10

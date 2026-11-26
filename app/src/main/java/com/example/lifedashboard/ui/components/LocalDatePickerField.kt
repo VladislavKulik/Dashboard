@@ -22,6 +22,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import com.example.lifedashboard.R
 import com.example.lifedashboard.data.DateInput
 import java.time.Instant
 import java.time.LocalDate
@@ -48,13 +50,13 @@ fun LocalDatePickerField(
             label = { Text(label) },
             trailingIcon = {
                 IconButton(onClick = { showPicker = true }) {
-                    Icon(Icons.Outlined.CalendarMonth, contentDescription = "Выбрать дату")
+                    Icon(Icons.Outlined.CalendarMonth, contentDescription = stringResource(R.string.action_select_date))
                 }
             },
             modifier = Modifier.weight(1f).clickable { showPicker = true }
         )
         if (allowClear && date != null) {
-            TextButton(onClick = { onDateChange(null) }) { Text("Сбросить") }
+            TextButton(onClick = { onDateChange(null) }) { Text(stringResource(R.string.action_reset)) }
         }
     }
     if (showPicker) {
@@ -90,9 +92,9 @@ private fun LocalDatePickerDialog(
                         onConfirm(Instant.ofEpochMilli(millis).atZone(ZoneOffset.UTC).toLocalDate())
                     }
                 }
-            ) { Text("Выбрать") }
+            ) { Text(stringResource(R.string.action_select)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Отмена") } }
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } }
     ) {
         DatePicker(state = pickerState)
     }

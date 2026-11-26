@@ -6,6 +6,8 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -24,13 +26,17 @@ import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.ChevronLeft
 import androidx.compose.material.icons.outlined.ChevronRight
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Flag
 import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.Repeat
 import androidx.compose.material.icons.outlined.Today
+import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -61,6 +67,7 @@ import com.example.lifedashboard.data.model.DashboardProject
 import com.example.lifedashboard.data.model.DashboardTask
 import com.example.lifedashboard.data.model.TaskPriority
 import com.example.lifedashboard.data.model.TaskRecurrence
+import com.example.lifedashboard.ui.components.AppFab
 import com.example.lifedashboard.ui.components.FilterPill
 import com.example.lifedashboard.ui.components.PastelCard
 import com.example.lifedashboard.ui.components.ScreenTopBar
@@ -112,9 +119,12 @@ fun CalendarScreen(
     var selectedPeriod by remember { mutableStateOf(CalendarPeriod.ALL) }
     var selectedType by remember { mutableStateOf(CalendarTypeFilter.ALL) }
 
+    var showFilterSheet by remember { mutableStateOf(false) }
     var showCreatePicker by remember { mutableStateOf(false) }
     var activeCreateDialog by remember { mutableStateOf<CalendarCreateAction?>(null) }
     var selectedTaskForSheet by remember { mutableStateOf<DashboardTask?>(null) }
+
+    val hasActiveFilter = selectedPeriod != CalendarPeriod.ALL || selectedType != CalendarTypeFilter.ALL
 
     val todayDate = LocalDate.now()
     val today = remember { todayDate.toString() }
@@ -155,135 +165,150 @@ fun CalendarScreen(
     }
     val selectedEvents = remember(visibleEvents, selectedDate) { visibleEvents.filter { it.dateKey == selectedDate } }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp, vertical = 18.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        ScreenTopBar(
-            title = "Календарь",
-            actionIcon = Icons.Outlined.Add,
-            actionDescription = "Добавить событие на выбранную дату",
-            onActionClick = { showCreatePicker = true },
-            onBackClick = onBack
-        )
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(start = 20.dp, top = 18.dp, end = 20.dp, bottom = 96.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            ScreenTopBar(
+                title = "Календарь",
+                actionIcon = Icons.Outlined.Tune,
+                actionDescription = "Фильтры календаря",
+                onActionClick = { showFilterSheet = true },
+                onBackClick = onBack
+            )
 
-        if (!operationError.isNullOrBlank()) {
-            Text(operationError, color = AppColors.Error, style = MaterialTheme.typography.bodySmall)
-        }
-
-        PastelCard(color = AppColors.White, contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    CalendarEventFactory.formatMonthTitle(year, month),
-                    modifier = Modifier.weight(1f), color = AppColors.Ink,
-                    fontSize = 20.sp, fontWeight = FontWeight.Bold
-                )
-                IconButton(onClick = { shiftMonth(-1) }) {
-                    Icon(Icons.Outlined.ChevronLeft, contentDescription = "Предыдущий месяц", tint = AppColors.Ink)
-                }
-                IconButton(onClick = { shiftMonth(1) }) {
-                    Icon(Icons.Outlined.ChevronRight, contentDescription = "Следующий месяц", tint = AppColors.Ink)
-                }
-                TextButton(onClick = { monthOffset = 0; selectedDate = today }) {
-                    Icon(Icons.Outlined.Today, contentDescription = null, tint = AppColors.Ink, modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(4.dp))
-                    Text("Сегодня", color = AppColors.Ink)
-                }
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                CalendarPeriod.values().forEach { period ->
-                    FilterPill(
-                        label = period.title,
-                        selected = selectedPeriod == period,
-                        onClick = { selectedPeriod = period }
+            if (hasActiveFilter) {
+                Row(
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .background(AppColors.Lavender)
+                        .clickable { showFilterSheet = true }
+                        .padding(start = 14.dp, end = 8.dp, top = 6.dp, bottom = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    val filterSummary = buildList {
+                        if (selectedPeriod != CalendarPeriod.ALL) add(selectedPeriod.title)
+                        if (selectedType != CalendarTypeFilter.ALL) add(selectedType.title)
+                    }.joinToString(" · ")
+                    Text(
+                        text = "Фильтр: $filterSummary",
+                        color = AppColors.Ink,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold
                     )
+                    Box(
+                        modifier = Modifier
+                            .size(22.dp)
+                            .clip(CircleShape)
+                            .background(AppColors.White.copy(alpha = 0.8f))
+                            .clickable {
+                                selectedPeriod = CalendarPeriod.ALL
+                                selectedType = CalendarTypeFilter.ALL
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Close,
+                            contentDescription = "Сбросить фильтры",
+                            tint = AppColors.Ink,
+                            modifier = Modifier.size(13.dp)
+                        )
+                    }
                 }
             }
 
-            Row(
-                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                CalendarTypeFilter.values().forEach { filter ->
-                    FilterPill(
-                        label = filter.title,
-                        selected = selectedType == filter,
-                        onClick = { selectedType = filter }
+            if (!operationError.isNullOrBlank()) {
+                Text(operationError, color = AppColors.Error, style = MaterialTheme.typography.bodySmall)
+            }
+
+            PastelCard(color = AppColors.White, contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        CalendarEventFactory.formatMonthTitle(year, month),
+                        modifier = Modifier.weight(1f), color = AppColors.Ink,
+                        fontSize = 20.sp, fontWeight = FontWeight.Bold
                     )
+                    IconButton(onClick = { shiftMonth(-1) }) {
+                        Icon(Icons.Outlined.ChevronLeft, contentDescription = "Предыдущий месяц", tint = AppColors.Ink)
+                    }
+                    IconButton(onClick = { shiftMonth(1) }) {
+                        Icon(Icons.Outlined.ChevronRight, contentDescription = "Следующий месяц", tint = AppColors.Ink)
+                    }
+                    TextButton(onClick = { monthOffset = 0; selectedDate = today }) {
+                        Icon(Icons.Outlined.Today, contentDescription = null, tint = AppColors.Ink, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text("Сегодня", color = AppColors.Ink)
+                    }
                 }
-            }
 
-            val weekdays = listOf("Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс")
-            Row(modifier = Modifier.fillMaxWidth()) {
-                weekdays.forEach { day ->
-                    Text(day, modifier = Modifier.weight(1f), textAlign = TextAlign.Center, color = AppColors.Muted, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                val weekdays = listOf("Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс")
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    weekdays.forEach { day ->
+                        Text(day, modifier = Modifier.weight(1f), textAlign = TextAlign.Center, color = AppColors.Muted, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                    }
                 }
-            }
 
-            monthCells.chunked(7).forEach { week ->
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                    week.forEach { dateKey ->
-                        if (dateKey == null) {
-                            Box(modifier = Modifier.weight(1f).height(58.dp))
-                        } else {
-                            val dayEvents = monthEvents.filter { it.dateKey == dateKey }
-                            val isSelected = dateKey == selectedDate
-                            val isToday = dateKey == today
-                            Box(
-                                modifier = Modifier.weight(1f).height(58.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(if (isSelected) AppColors.Ink else if (isToday) AppColors.Lavender.copy(alpha = 0.5f) else Color.Transparent)
-                                    .clickable { selectedDate = dateKey },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                                    Text(
-                                        dateKey.substringAfterLast('-').toIntOrNull()?.toString().orEmpty(),
-                                        color = if (isSelected) AppColors.White else AppColors.Ink,
-                                        fontSize = 14.sp,
-                                        fontWeight = if (isSelected || isToday) FontWeight.Bold else FontWeight.Normal
-                                    )
-                                    Row(horizontalArrangement = Arrangement.spacedBy(2.dp), modifier = Modifier.height(5.dp)) {
-                                        dayEvents.take(3).forEach { event ->
-                                            Box(Modifier.size(4.dp).clip(CircleShape).background(if (isSelected) AppColors.White else eventColor(event.type)))
+                monthCells.chunked(7).forEach { week ->
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                        week.forEach { dateKey ->
+                            if (dateKey == null) {
+                                Box(modifier = Modifier.weight(1f).height(58.dp))
+                            } else {
+                                val dayEvents = monthEvents.filter { it.dateKey == dateKey }
+                                val isSelected = dateKey == selectedDate
+                                val isToday = dateKey == today
+                                Box(
+                                    modifier = Modifier.weight(1f).height(58.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(if (isSelected) AppColors.Ink else if (isToday) AppColors.Lavender.copy(alpha = 0.5f) else Color.Transparent)
+                                        .clickable { selectedDate = dateKey },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                        Text(
+                                            dateKey.substringAfterLast('-').toIntOrNull()?.toString().orEmpty(),
+                                            color = if (isSelected) AppColors.White else AppColors.Ink,
+                                            fontSize = 14.sp,
+                                            fontWeight = if (isSelected || isToday) FontWeight.Bold else FontWeight.Normal
+                                        )
+                                        Row(horizontalArrangement = Arrangement.spacedBy(2.dp), modifier = Modifier.height(5.dp)) {
+                                            dayEvents.take(3).forEach { event ->
+                                                Box(Modifier.size(4.dp).clip(CircleShape).background(if (isSelected) AppColors.White else eventColor(event.type)))
+                                            }
                                         }
                                     }
-                                }
-                                if (dayEvents.size > 3) {
-                                    Text(
-                                        "+${dayEvents.size - 3}", fontSize = 8.sp,
-                                        color = if (isSelected) AppColors.White else AppColors.Muted,
-                                        modifier = Modifier.align(Alignment.TopEnd).padding(top = 3.dp, end = 4.dp)
-                                    )
+                                    if (dayEvents.size > 3) {
+                                        Text(
+                                            "+${dayEvents.size - 3}", fontSize = 8.sp,
+                                            color = if (isSelected) AppColors.White else AppColors.Muted,
+                                            modifier = Modifier.align(Alignment.TopEnd).padding(top = 3.dp, end = 4.dp)
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
                 }
+
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())
+                ) {
+                    LegendDot(AppColors.Purple, "Задачи")
+                    LegendDot(AppColors.Blue, "Проекты")
+                    LegendDot(AppColors.Yellow, "Цели")
+                    LegendDot(AppColors.Pink, "Привычки")
+                    LegendDot(AppColors.Mint, "Активность")
+                }
             }
 
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())
-            ) {
-                LegendDot(AppColors.Purple, "Задачи")
-                LegendDot(AppColors.Blue, "Проекты")
-                LegendDot(AppColors.Yellow, "Цели")
-                LegendDot(AppColors.Pink, "Привычки")
-                LegendDot(AppColors.Mint, "Активность")
-            }
-        }
-
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(CalendarEventFactory.formatDayTitle(selectedDate), color = AppColors.Ink, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                     Text(
                         when (selectedEvents.size) {
@@ -296,51 +321,68 @@ fun CalendarScreen(
                         fontSize = 13.sp
                     )
                 }
-                TextButton(onClick = { showCreatePicker = true }) {
-                    Icon(Icons.Outlined.Add, contentDescription = null, tint = AppColors.Ink, modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(4.dp))
-                    Text("Добавить", color = AppColors.Ink, fontWeight = FontWeight.Bold)
-                }
-            }
 
-            if (selectedEvents.isEmpty()) {
-                PastelCard(color = AppColors.White) {
-                    Text("На этот день ничего не запланировано", color = AppColors.Ink, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-                    Text(
-                        "Нажми «Добавить», чтобы создать задачу, цель, проект или отметить привычку за этот день.",
-                        color = AppColors.Muted,
-                        fontSize = 13.sp
-                    )
-                }
-            } else {
-                selectedEvents.forEach { event ->
-                    PastelCard(
-                        modifier = Modifier.fillMaxWidth().clickable {
-                            if (event.type == CalendarEventType.TASK) {
-                                val task = tasks.firstOrNull { it.id == event.relatedId }
-                                if (task != null) selectedTaskForSheet = task else onEventClick(event)
-                            } else {
-                                onEventClick(event)
+                if (selectedEvents.isEmpty()) {
+                    PastelCard(color = AppColors.White) {
+                        Text("На этот день ничего не запланировано", color = AppColors.Ink, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                        Text(
+                            "Нажми кнопку «+» внизу экрана, чтобы создать задачу, цель, проект или отметить привычку за этот день.",
+                            color = AppColors.Muted,
+                            fontSize = 13.sp
+                        )
+                    }
+                } else {
+                    selectedEvents.forEach { event ->
+                        PastelCard(
+                            modifier = Modifier.fillMaxWidth().clickable {
+                                if (event.type == CalendarEventType.TASK) {
+                                    val task = tasks.firstOrNull { it.id == event.relatedId }
+                                    if (task != null) selectedTaskForSheet = task else onEventClick(event)
+                                } else {
+                                    onEventClick(event)
+                                }
+                            },
+                            color = eventColor(event.type),
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(event.type.label, color = AppColors.Ink.copy(alpha = 0.66f), fontSize = 11.sp, modifier = Modifier.weight(1f))
+                                if (event.completed) Text("Готово", color = AppColors.Ink, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                             }
-                        },
-                        color = eventColor(event.type),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(event.type.label, color = AppColors.Ink.copy(alpha = 0.66f), fontSize = 11.sp, modifier = Modifier.weight(1f))
-                            if (event.completed) Text("Готово", color = AppColors.Ink, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-                        }
-                        Text(event.title, color = AppColors.Ink, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-                        Text(event.subtitle, color = AppColors.Ink.copy(alpha = 0.72f), fontSize = 12.sp)
-                        event.timeLabel?.let { time ->
-                            Text("Напоминание · $time", color = AppColors.Ink, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                            Text(event.title, color = AppColors.Ink, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                            Text(event.subtitle, color = AppColors.Ink.copy(alpha = 0.72f), fontSize = 12.sp)
+                            event.timeLabel?.let { time ->
+                                Text("Напоминание · $time", color = AppColors.Ink, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                            }
                         }
                     }
                 }
             }
         }
-        Spacer(Modifier.height(8.dp))
+
+        AppFab(
+            icon = Icons.Outlined.Add,
+            contentDescription = "Добавить событие на выбранную дату",
+            onClick = { showCreatePicker = true },
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(20.dp)
+        )
+    }
+
+    if (showFilterSheet) {
+        CalendarFilterSheet(
+            selectedPeriod = selectedPeriod,
+            selectedType = selectedType,
+            onSelectPeriod = { selectedPeriod = it },
+            onSelectType = { selectedType = it },
+            onReset = {
+                selectedPeriod = CalendarPeriod.ALL
+                selectedType = CalendarTypeFilter.ALL
+            },
+            onDismiss = { showFilterSheet = false }
+        )
     }
 
     if (showCreatePicker) {
@@ -391,6 +433,89 @@ fun CalendarScreen(
                 onOpenTaskDetails(freshTask.id)
             }
         )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+private fun CalendarFilterSheet(
+    selectedPeriod: CalendarPeriod,
+    selectedType: CalendarTypeFilter,
+    onSelectPeriod: (CalendarPeriod) -> Unit,
+    onSelectType: (CalendarTypeFilter) -> Unit,
+    onReset: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = AppColors.Background,
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 28.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Фильтры календаря",
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = AppColors.Ink,
+                    modifier = Modifier.weight(1f)
+                )
+                if (selectedPeriod != CalendarPeriod.ALL || selectedType != CalendarTypeFilter.ALL) {
+                    TextButton(onClick = onReset) {
+                        Text("Сбросить", color = AppColors.Muted, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+
+            Text("Период", color = AppColors.Muted, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                CalendarPeriod.values().forEach { period ->
+                    FilterPill(
+                        label = period.title,
+                        selected = selectedPeriod == period,
+                        onClick = { onSelectPeriod(period) }
+                    )
+                }
+            }
+
+            Text("Тип событий", color = AppColors.Muted, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                CalendarTypeFilter.values().forEach { filter ->
+                    FilterPill(
+                        label = filter.title,
+                        selected = selectedType == filter,
+                        onClick = { onSelectType(filter) }
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(4.dp))
+            Button(
+                onClick = onDismiss,
+                modifier = Modifier.fillMaxWidth(),
+                shape = CircleShape,
+                colors = ButtonDefaults.buttonColors(containerColor = AppColors.Ink, contentColor = AppColors.White),
+                contentPadding = PaddingValues(vertical = 14.dp)
+            ) {
+                Text("Готово", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+            }
+        }
     }
 }
 

@@ -38,6 +38,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
+import com.example.lifedashboard.R
 import com.example.lifedashboard.ui.theme.AppColors
 
 enum class RootDestination { HOME, MENU, SEARCH, SETTINGS }
@@ -76,28 +78,28 @@ fun AppBottomBar(
             ) {
                 BottomBarItem(
                     icon = Icons.Outlined.Home,
-                    label = "Главная",
+                    label = stringResource(R.string.tab_home),
                     selected = selected == RootDestination.HOME,
                     onClick = onHomeClick,
                     modifier = Modifier.weight(1f)
                 )
                 BottomBarItem(
                     icon = Icons.Outlined.GridView,
-                    label = "Разделы",
+                    label = stringResource(R.string.tab_sections),
                     selected = selected == RootDestination.MENU,
                     onClick = onMenuClick,
                     modifier = Modifier.weight(1f)
                 )
                 BottomBarItem(
                     icon = Icons.Outlined.Search,
-                    label = "Поиск",
+                    label = stringResource(R.string.tab_search),
                     selected = selected == RootDestination.SEARCH,
                     onClick = onSearchClick,
                     modifier = Modifier.weight(1f)
                 )
                 BottomBarItem(
                     icon = Icons.Outlined.Tune,
-                    label = "Настройки",
+                    label = stringResource(R.string.tab_settings),
                     selected = selected == RootDestination.SETTINGS,
                     onClick = onSettingsClick,
                     modifier = Modifier.weight(1f)
@@ -120,7 +122,7 @@ fun AppBottomBar(
             Box(contentAlignment = Alignment.Center) {
                 Icon(
                     imageVector = Icons.Outlined.Add,
-                    contentDescription = "Добавить",
+                    contentDescription = stringResource(R.string.action_add),
                     tint = AppColors.Ink,
                     modifier = Modifier.size(25.dp)
                 )
